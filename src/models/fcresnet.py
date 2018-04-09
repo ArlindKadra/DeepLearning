@@ -37,9 +37,9 @@ def get_config_space(max_num_layers=3, max_num_res_blocks=30):
     for i in range(1, max_num_layers + 1):
 
         n_units = ConfigSpace.UniformIntegerHyperparameter("num_units_%d" % i,
-                                                           lower=8,
+                                                           lower=128,
                                                            upper=1024,
-                                                           default_value=10,
+                                                           default_value=128,
                                                            log=True)
         cs.add_hyperparameter(n_units)
 
@@ -68,46 +68,61 @@ def get_config_space(max_num_layers=3, max_num_res_blocks=30):
     return cs
 
 
-def train(config, num_epochs, examples, labels):
+def train(config, num_epochs, x_train, y_train, x_test, y_test):
 
-    nr_classes = max(labels) + 1
+    nr_classes = max(y_train) + 1
     batch_size = config["batch_size"]
-    print("Batch size")
-    print(batch_size)
-    network = FcResNet(BasicBlock, config, examples.shape[1], nr_classes)
-    #network.cuda()
+    network = FcResNet(BasicBlock, config, x_train.shape[1], nr_classes)
+    # network.cuda()
     loss_function = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(network.parameters())
-    for epoch in range(0, num_epochs):  # loop over the dataset multiple times
+    optimizer = optim.Adam(network.parameters(), config["learning_rate"])
+
+    # loop over the dataset according to the number of epochs
+    for epoch in range(0, num_epochs):
 
         running_loss = 0.0
-        for i in range(0, (examples.shape[0] - batch_size), batch_size):
+        for i in range(0, (x_train.shape[0] - batch_size), batch_size):
             # get the inputs
-            x = examples[i:i + batch_size]
-            y = labels[i:i + batch_size]
+            x = x_train[i:i + batch_size]
+            y = y_train[i:i + batch_size]
             x = torch.from_numpy(x)
             y = torch.from_numpy(y).long()
             # wrap them in Variable
             x, y = Variable(x), Variable(y)
+            # x = x.cuda()
+            # y = y.cuda()
             # forward + backward + optimize
             optimizer.zero_grad()  # zero the gradient buffers
             output = network(x)
-            print(output)
             loss = loss_function(output, y)
             loss.backward()
             optimizer.step()
-            # print statistics
             running_loss += loss.data[0]
             if i % 5 == 1:  # print every 5 mini-batches
                 print('[%d, %5d] loss: %.3f' %
-                      (epoch + 1, i + 1, running_loss / 2000))
+                      (epoch + 1, i + 1, running_loss / 5))
                 running_loss = 0.0
+
+    correct = 0
+    total = 0
+    x_test = Variable(torch.from_numpy(x_test))
+    # x_test.cuda()
+    outputs = network(x_test)
+    y_test = torch.from_numpy(y_test).long()
+    # y_test.cuda()
+    _, predicted = torch.max(outputs.data, 1)
+    total += y_test.size(0)
+    correct += (predicted == y_test).sum()
+    accuracy = 100 * correct / total
+    print('Accuracy of the network: %d %%' % accuracy)
     print('Finished Training')
+    return accuracy
 
 
 class FcResNet(nn.Module):
 
     def __init__(self, block, config, input_features, nr_labels, number_epochs=100):
+
         super(FcResNet, self).__init__()
         self.config = config
         self.number_epochs = number_epochs
@@ -115,6 +130,13 @@ class FcResNet(nn.Module):
         self.layers = self._make_layer(block, self.config["num_res_blocks"], input_features)
         self.fc_layer = nn.Linear(self.config["num_units_%i" % self.config["num_layers"]], int(nr_labels))
         self.softmax_layer = nn.Softmax(1)
+
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                m.bias.data.zero_()
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
 
     def forward(self, x):
 
@@ -135,12 +157,14 @@ class FcResNet(nn.Module):
 class BasicBlock(nn.Module):
 
     def __init__(self, in_features, config):
+
         super(BasicBlock, self).__init__()
         self.fc_layers = []
         self.batch_norm_layers = []
         self.relu = nn.ReLU(inplace=True)
         self.fc_layers.append(nn.Linear(in_features, config["num_units_1"]))
         self.batch_norm_layers.append(nn.BatchNorm1d(config["num_units_1"]))
+
         for i in range(2, config["num_layers"] + 1):
             self.fc_layers.append(nn.Linear(config["num_units_%d" % (i-1)], config["num_units_%d" % i]))
             self.batch_norm_layers.append(nn.BatchNorm1d(config["num_units_%d" % i]))
