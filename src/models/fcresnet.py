@@ -75,7 +75,7 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
     network = FcResNet(BasicBlock, config, x_train.shape[1], nr_classes)
     # network.cuda()
     loss_function = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(network.parameters(), config["learning_rate"])
+    optimizer = optim.SGD(network.parameters(), config["learning_rate"], momentum=config["momentum"])
 
     # loop over the dataset according to the number of epochs
     for epoch in range(0, num_epochs):
@@ -173,14 +173,15 @@ class BasicBlock(nn.Module):
 
         residual = x
         out = x
-        for i in range(0, len(self.fc_layers)):
+        for i in range(0, len(self.fc_layers)-1):
             out = self.fc_layers[i](out)
-            out = self.relu(out)
             out = self.batch_norm_layers[i](out)
-        # TODO handle cases where the residual dimensions are greater than the output
-        if residual.size()[1] < out.size()[1]:
-            padding = Variable(torch.zeros(out.size()[0], out.size()[1] - residual.size()[1]))
-            residual = torch.cat((residual, padding), 1)
+            out = self.relu(out)
+        out = self.fc_layers[len(self.fc_layers) - 1](out)
+        out = self.batch_norm_layers[len(self.fc_layers) - 1](out)
+        if residual.size()[1] != out.size()[1]:
+            projection = nn.Linear(residual.size()[1], out.size()[1])
+            residual = projection(residual)
         out += residual
         out = self.relu(out)
         return out
