@@ -3,6 +3,7 @@ import torch
 from torch.autograd import Variable
 import torch.nn as nn
 import torch.optim as optim
+import src.utils as utils
 
 
 def get_config_space(max_num_layers=3, max_num_res_blocks=30):
@@ -33,7 +34,8 @@ def get_config_space(max_num_layers=3, max_num_res_blocks=30):
                                                                  lower=0.0,
                                                                  upper=0.9,
                                                                  default_value=0.9))
-    # wrong, as it is not max
+
+    # it is the upper bound of the nr of layers, since the configuration will actually be sampled.
     for i in range(1, max_num_layers + 1):
 
         n_units = ConfigSpace.UniformIntegerHyperparameter("num_units_%d" % i,
@@ -68,6 +70,10 @@ def get_config_space(max_num_layers=3, max_num_res_blocks=30):
     return cs
 
 
+def validate_output(x):
+
+    return x != x
+
 def train(config, num_epochs, x_train, y_train, x_test, y_test):
 
     nr_classes = max(y_train) + 1
@@ -81,6 +87,7 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
     for epoch in range(0, num_epochs):
 
         running_loss = 0.0
+        nr_batches = 0
         for i in range(0, (x_train.shape[0] - batch_size), batch_size):
             # get the inputs
             x = x_train[i:i + batch_size]
@@ -94,14 +101,16 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
             # forward + backward + optimize
             optimizer.zero_grad()  # zero the gradient buffers
             output = network(x)
+
+            if utils.contains_nan(output.data.numpy()):
+                raise ValueError("NaN value in output")
+
             loss = loss_function(output, y)
             loss.backward()
             optimizer.step()
             running_loss += loss.data[0]
-            if i % 5 == 1:  # print every 5 mini-batches
-                print('[%d, %5d] loss: %.3f' %
-                      (epoch + 1, i + 1, running_loss / 5))
-                running_loss = 0.0
+            nr_batches += 1
+        print('Epoch %d, loss: %.3f' % (epoch + 1, running_loss / nr_batches))
 
     correct = 0
     total = 0
@@ -185,3 +194,4 @@ class BasicBlock(nn.Module):
         out += residual
         out = self.relu(out)
         return out
+

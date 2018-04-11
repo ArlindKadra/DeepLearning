@@ -8,3 +8,13 @@ def feature_normalization(x):
     x = (x - mean) / std
 
     return x, mean, std
+
+
+def contains_nan(x):
+
+    result = np.isnan(x)
+    if True in result:
+        return True
+    else:
+        return False
+
