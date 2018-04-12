@@ -2,14 +2,13 @@ import openml
 import random
 import numpy as np
 from sklearn.model_selection import KFold
-
+from sklearn.preprocessing import OneHotEncoder
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
 
 from src.models import fcresnet
 import src.utils as utils
-
 
 
 benchmark_suite = openml.study.get_study("99", "tasks")
@@ -22,10 +21,13 @@ x, y, categorical = dataset.get_data(target=dataset.default_target_attribute,
 if utils.contains_nan(x):
     raise ValueError("Input contains Nan values")
 
-# print(enc)
-# x = enc.fit_transform(x)
+if True in categorical:
+    x, mean, std = utils.feature_normalization(x, categorical)
+    enc = OneHotEncoder(categorical_features=categorical, dtype=np.float32)
+    x = enc.fit_transform(x).todense()
+else:
+    x, mean, std = utils.feature_normalization(x, None)
 
-x, mean, std = utils.feature_normalization(x)
 
 config_space = fcresnet.get_config_space()
 config = config_space.sample_configuration(1)
