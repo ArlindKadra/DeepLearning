@@ -102,6 +102,7 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
             optimizer.zero_grad()  # zero the gradient buffers
             output = network(x)
 
+            # stop training if we have NaN values in the output
             if utils.contains_nan(output.data.numpy()):
                 raise ValueError("NaN value in output")
 
@@ -194,4 +195,3 @@ class BasicBlock(nn.Module):
         out += residual
         out = self.relu(out)
         return out
-
