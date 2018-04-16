@@ -84,6 +84,7 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
     # network.cuda()
     loss_function = nn.CrossEntropyLoss()
     optimizer = optim.SGD(network.parameters(), config["learning_rate"], momentum=config["momentum"])
+    logging.info('FCresnet started training')
 
     # loop over the dataset according to the number of epochs
     for epoch in range(0, num_epochs):
