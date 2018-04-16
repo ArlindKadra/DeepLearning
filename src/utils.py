@@ -77,7 +77,7 @@ def cross_validation(x, y, network, config, nr_folds=10):
         x_test, y_test = x[test_indices], y[test_indices]
         results.append(network.train(config, 5, x_train, y_train, x_test, y_test))
 
-    return np.mean(results)
+    return np.mean(results[0]), np.mean(results[1])
 
 
 

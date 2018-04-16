@@ -84,7 +84,7 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
     # network.cuda()
     loss_function = nn.CrossEntropyLoss()
     optimizer = optim.SGD(network.parameters(), config["learning_rate"], momentum=config["momentum"])
-    logging.info('FCresnet started training')
+    logging.info('FcResNet started training')
 
     # loop over the dataset according to the number of epochs
     for epoch in range(0, num_epochs):
@@ -122,14 +122,15 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
     x_test = Variable(torch.from_numpy(x_test))
     # x_test.cuda()
     outputs = network(x_test)
-    y_test = torch.from_numpy(y_test).long()
+    y_test = Variable(torch.from_numpy(y_test).long())
+    test_loss = loss_function(outputs, y_test)
     # y_test.cuda()
     _, predicted = torch.max(outputs.data, 1)
     total += y_test.size(0)
-    correct += (predicted == y_test).sum()
+    correct += (predicted == y_test.data).sum()
     accuracy = 100 * correct / total
-    logging.info('Accuracy of the network: %d %%', accuracy)
-    return accuracy
+    logging.info('Test loss: %.3f, accuracy of the network: %.3f %%', test_loss.data[0], accuracy)
+    return loss, accuracy
 
 
 class FcResNet(nn.Module):
