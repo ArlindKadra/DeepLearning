@@ -1,9 +1,11 @@
+import src.utils as utils
+
+import logging
 import ConfigSpace
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
 import torch.optim as optim
-import src.utils as utils
 
 
 def get_config_space(max_num_layers=3, max_num_res_blocks=30):
@@ -104,6 +106,7 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
 
             # stop training if we have NaN values in the output
             if utils.contains_nan(output.data.numpy()):
+                logging.error('Output contains NaN values')
                 raise ValueError("NaN value in output")
 
             loss = loss_function(output, y)
@@ -111,7 +114,7 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
             optimizer.step()
             running_loss += loss.data[0]
             nr_batches += 1
-        print('Epoch %d, loss: %.3f' % (epoch + 1, running_loss / nr_batches))
+        logging.info('Epoch %d, loss: %.3f', epoch + 1, running_loss / nr_batches)
 
     correct = 0
     total = 0
@@ -124,8 +127,7 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
     total += y_test.size(0)
     correct += (predicted == y_test).sum()
     accuracy = 100 * correct / total
-    print('Accuracy of the network: %d %%' % accuracy)
-    print('Finished Training')
+    logging.info('Accuracy of the network: %d %%', accuracy)
     return accuracy
 
 
