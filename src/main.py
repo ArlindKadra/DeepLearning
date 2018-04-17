@@ -38,10 +38,10 @@ def main():
     else:
         x, mean, std = utils.feature_normalization(x, None)
 
-    config_space = fcresnet.get_config_space()
-    config = config_space.sample_configuration(1)
-    result = utils.cross_validation(x, y, fcresnet, config)
-    logging.info('Cross Validation loss: %.3f, accuracy %.3f', result[0], result[1])
+    #config_space = fcresnet.get_config_space()
+    #config = config_space.sample_configuration(1)
+    #result = utils.cross_validation(x, y, fcresnet.FcResNet, config)
+    #logging.info('Cross Validation loss: %.3f, accuracy %.3f', result[0], result[1])
 
 
 if __name__ == '__main__':
