@@ -3,11 +3,11 @@ logging.basicConfig(format='%(asctime)s %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p',
                     filename='network.log', level=logging.INFO)
 
-from src.models import fcresnet
-from src.models import random_forest
-from src.models import svm
-from src.optim.hpbandster import Master
-import src.utils as utils
+from models import fcresnet
+from models import random_forest
+from models import svm
+from optim.hpbandster import Master
+import utils as utils
 
 import argparse
 import openml

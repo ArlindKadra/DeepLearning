@@ -1,7 +1,7 @@
 import logging
-from src.utils import cross_validation
-from src.models.fcresnet import FcResNet
-from src.models import fcresnet
+from utils import cross_validation
+from models.fcresnet import FcResNet
+from models import fcresnet
 
 from hpbandster.api.optimizers.bohb import BOHB
 import hpbandster.api.util as hputil

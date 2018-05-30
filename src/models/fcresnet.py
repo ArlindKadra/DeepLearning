@@ -1,4 +1,4 @@
-import src.utils as utils
+import utils
 
 import logging
 import ConfigSpace
