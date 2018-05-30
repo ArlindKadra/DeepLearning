@@ -22,6 +22,7 @@ def main():
     parser.add_argument('--run_id', help='unique id to identify the HPB run.', default='HPB_example_2', type=str)
     parser.add_argument('--array_id', help='SGE array id to tread one job array as a HPB run.', default=1, type=int)
     parser.add_argument('--working_dir', help='working directory to store live data.', default='.', type=str)
+    parser.add_argument('--nic_name', help='name of the Network Interface Card.', default='lo', type=str)
 
     args = parser.parse_args()
 
@@ -45,7 +46,7 @@ def main():
     else:
         x, mean, std = utils.feature_normalization(x, None)
 
-    master = Master(args.run_id, args.array_id, args.working_dir)
+    master = Master(args.run_id, args.array_id, args.working_dir, args.nic_name)
 
     random_forest.train(x, y, categorical)
     svm.train(x, y, categorical)
