@@ -6,7 +6,6 @@ import pickle
 from utils import cross_validation
 from models.fcresnet import FcResNet
 from models import fcresnet
-rom .hpbandster import Slave
 
 from hpbandster.optimizers import BOHB
 import hpbandster.core.nameserver as hpns
