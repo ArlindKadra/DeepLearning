@@ -1,3 +1,5 @@
+import models.fcresnet
+
 import numpy as np
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
@@ -74,14 +76,13 @@ def contains_nan(x):
         return False
 
 
-def cross_validation(nr_epochs, x, y, network, config, nr_folds=10):
+def cross_validation(nr_epochs, x, y, config, nr_folds=10):
     """Use cross validation to train the network.
 
     Args:
         nr_epochs: Number of epochs to train the network on.
         x: Input.
         y: Labels.
-        network: Pytorch network.
         config: ConfigSpace configuration
         nr_folds: Number of cross-validation folds.
 
@@ -100,7 +101,7 @@ def cross_validation(nr_epochs, x, y, network, config, nr_folds=10):
             y_train, y_validation = \
             train_test_split(x_train, y_train, test_size=1 / (nr_folds - 1))
         x_test, y_test = x[test_indices], y[test_indices]
-        accuracy, loss = network.train(config, nr_epochs, x_train, y_train, x_test, y_test)
+        accuracy, loss = models.fcresnet.train(config, nr_epochs, x_train, y_train, x_test, y_test)
         accuracy_results.append(accuracy)
         loss_results.append(loss)
     return loss_results, accuracy_results

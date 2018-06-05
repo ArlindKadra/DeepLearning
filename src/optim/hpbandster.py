@@ -4,7 +4,6 @@ import pickle
 
 from model import Loader
 from utils import cross_validation
-from models.fcresnet import FcResNet
 from models import fcresnet
 
 from hpbandster.optimizers import BOHB
@@ -39,7 +38,8 @@ class Master(object):
                       )
 
             res = hb.run(n_iterations=num_iterations,
-                         min_n_workers=num_workers  # BOHB can wait until a minimum number of workers is online before starting
+                         min_n_workers=num_workers
+                         # BOHB can wait until a minimum number of workers is online before starting
                          )
 
             # pickle result here for later analysis
@@ -77,7 +77,7 @@ class Slave(Worker):
         """
         loader = Loader()
         x, y, _ = loader.get_dataset()
-        loss, accuracy = cross_validation(int(budget), x, y, FcResNet, config)
+        loss, accuracy = cross_validation(int(budget), x, y, config)
         return ({
             'loss': np.mean(loss),  # this is the a mandatory field to run hyperband
             'info': (loss, accuracy)  # can be used for any user-defined information - also mandatory
