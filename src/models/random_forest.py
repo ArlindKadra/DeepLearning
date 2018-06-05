@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split
 
 def train(x_train, y_train, categorical_indicator):
 
+    logger = logging.getLogger(__name__)
     # Create feature type list indicator and run autosklearn
     feat_type = ['Categorical' if feature else 'Numerical'
                  for feature in categorical_indicator]
@@ -14,8 +15,8 @@ def train(x_train, y_train, categorical_indicator):
     random_forest = RandomForest().build()
     random_forest.fit(x_train, y_train, feat_type=feat_type)
     y_prediction = random_forest.predict(x_test)
-    logging.info('Random Forest accuracy score: %f %%', accuracy_score(y_test, y_prediction))
-    logging.info('Random Forest loss: %f %%', log_loss(y_test, y_prediction))
+    logger.info('Random Forest accuracy score: %f %%', accuracy_score(y_test, y_prediction))
+    logger.info('Random Forest loss: %f %%', log_loss(y_test, y_prediction))
 
 
 class RandomForest(object):

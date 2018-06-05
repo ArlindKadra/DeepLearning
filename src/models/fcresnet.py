@@ -78,13 +78,14 @@ def validate_output(x):
 
 def train(config, num_epochs, x_train, y_train, x_test, y_test):
 
+    logger = logging.getLogger(__name__)
     nr_classes = max(y_train) + 1
     batch_size = config["batch_size"]
     network = FcResNet(BasicBlock, config, x_train.shape[1], nr_classes)
     # network.cuda()
     loss_function = nn.CrossEntropyLoss()
     optimizer = optim.SGD(network.parameters(), config["learning_rate"], momentum=config["momentum"])
-    logging.info('FcResNet started training')
+    logger.info('FcResNet started training')
 
     # loop over the dataset according to the number of epochs
     for epoch in range(0, num_epochs):
@@ -107,7 +108,8 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
 
             # stop training if we have NaN values in the output
             if utils.contains_nan(output.data.numpy()):
-                logging.error('Output contains NaN values')
+                # TODO switch to logger exception
+                logger.error('Output contains NaN values')
                 raise ValueError("NaN value in output")
 
             loss = loss_function(output, y)
@@ -115,7 +117,7 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
             optimizer.step()
             running_loss += loss.data[0]
             nr_batches += 1
-        logging.info('Epoch %d, loss: %.3f', epoch + 1, running_loss / nr_batches)
+        logger.info('Epoch %d, loss: %.3f', epoch + 1, running_loss / nr_batches)
 
     correct = 0
     total = 0
@@ -129,7 +131,7 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
     total += y_test.size(0)
     correct += (predicted == y_test.data).sum()
     accuracy = 100 * correct / total
-    logging.info('Test loss: %.3f, accuracy of the network: %.3f %%', test_loss.data[0], accuracy)
+    logger.info('Test loss: %.3f, accuracy of the network: %.3f %%', test_loss.data[0], accuracy)
     return loss, accuracy
 
 

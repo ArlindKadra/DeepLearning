@@ -1,6 +1,8 @@
 import numpy as np
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
+import logging
+import os
 
 
 def feature_normalization(x, categorical=None):
@@ -31,6 +33,27 @@ def feature_normalization(x, categorical=None):
                     x[row, column] = (x[row, column] - mean[column]) / std[column]
 
     return x, mean, std
+
+
+def setup_logging(log_file, level=logging.INFO):
+    # TODO Read main logs dir from configuration
+    main_logs_dir='logs'
+    root = logging.getLogger()
+    root.setLevel(level)
+    format = '%(asctime)s, %(process)-6s %(levelname)-5s %(module)s: %(message)s'
+
+    date_format = '%H:%M:%S'
+
+    f = logging.Formatter(format, date_format)
+    ch = logging.StreamHandler()
+    ch.setFormatter(f)
+    root.addHandler(ch)
+
+    os.makedirs(os.path.join(main_logs_dir), exist_ok=True)
+    log_file = os.path.join(main_logs_dir, '{}.log'.format(log_file))
+    fh = logging.FileHandler(log_file)
+    fh.setFormatter(f)
+    root.addHandler(fh)
 
 
 def contains_nan(x):
