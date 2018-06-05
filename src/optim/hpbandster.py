@@ -14,7 +14,7 @@ from hpbandster.core.worker import Worker
 
 class Master(object):
 
-    def __init__(self, run_id, array_id, working_dir, nic_name):
+    def __init__(self, num_workers, num_iterations, run_id, array_id, working_dir, nic_name):
 
         config_space = fcresnet.get_config_space()
 
@@ -38,8 +38,8 @@ class Master(object):
                       ping_interval=3600,
                       )
 
-            res = hb.run(n_iterations=4,
-                         min_n_workers=4  # BOHB can wait until a minimum number of workers is online before starting
+            res = hb.run(n_iterations=num_iterations,
+                         min_n_workers=num_workers  # BOHB can wait until a minimum number of workers is online before starting
                          )
 
             # pickle result here for later analysis
