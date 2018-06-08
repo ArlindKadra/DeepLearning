@@ -21,7 +21,7 @@ def main():
     logger = logging.getLogger(__name__)
     # aTODO put verbose into configuration file
     verbose = False
-    utils.setup_logging(args.run_id, logging.DEBUG if verbose else logging.INFO)
+    utils.setup_logging(args.run_id + "_" +  str(args.array_id), logging.DEBUG if verbose else logging.INFO)
     logger.info('DeepResNet Experiment started')
     # benchmark_suite = openml.study.get_study("99", "tasks")
     # task_id = random.choice(list(benchmark_suite.tasks))

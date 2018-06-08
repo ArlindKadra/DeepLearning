@@ -3,7 +3,6 @@ import utils
 import logging
 import ConfigSpace
 import torch
-from torch.autograd import Variable
 import torch.nn as nn
 import torch.optim as optim
 
@@ -98,8 +97,6 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
             y = y_train[i:i + batch_size]
             x = torch.from_numpy(x)
             y = torch.from_numpy(y).long()
-            # wrap them in Variable
-            x, y = Variable(x), Variable(y)
             # x = x.cuda()
             # y = y.cuda()
             # forward + backward + optimize
@@ -115,23 +112,24 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
             loss = loss_function(output, y)
             loss.backward()
             optimizer.step()
-            running_loss += loss.data[0]
+            running_loss += loss.item()
             nr_batches += 1
         logger.info('Epoch %d, loss: %.3f', epoch + 1, running_loss / nr_batches)
 
-    correct = 0
-    total = 0
-    x_test = Variable(torch.from_numpy(x_test))
-    # x_test.cuda()
-    outputs = network(x_test)
-    y_test = Variable(torch.from_numpy(y_test).long())
-    test_loss = loss_function(outputs, y_test)
-    # y_test.cuda()
-    _, predicted = torch.max(outputs.data, 1)
-    total += y_test.size(0)
-    correct += (predicted == y_test.data).sum()
-    accuracy = 100 * correct / total
-    logger.info('Test loss: %.3f, accuracy of the network: %.3f %%', test_loss.data[0], accuracy)
+    with torch.no_grad():
+        correct = 0
+        total = 0
+        x_test = torch.from_numpy(x_test)
+        # x_test.cuda()
+        outputs = network(x_test)
+        y_test = torch.from_numpy(y_test).long()
+        test_loss = loss_function(outputs, y_test)
+        # y_test.cuda()
+        _, predicted = torch.max(outputs.data, 1)
+        total += y_test.size(0)
+        correct += ((predicted == y_test).sum()).item()
+        accuracy = 100 * correct / total
+    logger.info('Test loss: %.3f, accuracy of the network: %.3f %%', test_loss.item(), accuracy)
     return loss, accuracy
 
 
