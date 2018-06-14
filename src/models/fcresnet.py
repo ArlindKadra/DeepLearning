@@ -75,17 +75,22 @@ def validate_output(x):
 
     return x != x
 
-def train(config, num_epochs, x_train, y_train, x_test, y_test):
+def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
     logger = logging.getLogger(__name__)
     nr_classes = max(y_train) + 1
     batch_size = config["batch_size"]
-    network = FcResNet(BasicBlock, config, x_train.shape[1], nr_classes)
-    # network.cuda()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    network = FcResNet(BasicBlock, config, x_train.shape[1], nr_classes).to(device)
     loss_function = nn.CrossEntropyLoss()
     optimizer = optim.SGD(network.parameters(), config["learning_rate"], momentum=config["momentum"])
     logger.info('FcResNet started training')
-
+    network_val_loss = []
+    x_val = torch.from_numpy(x_val)
+    x_val.requires_grad_(False)
+    y_val = torch.from_numpy(y_val)
+    y_val.requires_grad_(False)
+    x_val, y_val = x_val.to(device), y_val.to(device)
     # loop over the dataset according to the number of epochs
     for epoch in range(0, num_epochs):
 
@@ -97,8 +102,7 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
             y = y_train[i:i + batch_size]
             x = torch.from_numpy(x)
             y = torch.from_numpy(y).long()
-            # x = x.cuda()
-            # y = y.cuda()
+            x, y = x.to(device), y.to(device)
             # forward + backward + optimize
             optimizer.zero_grad()  # zero the gradient buffers
             output = network(x)
@@ -114,23 +118,27 @@ def train(config, num_epochs, x_train, y_train, x_test, y_test):
             optimizer.step()
             running_loss += loss.item()
             nr_batches += 1
-        logger.info('Epoch %d, loss: %.3f', epoch + 1, running_loss / nr_batches)
+        outputs = network(x_val)
+        val_loss = loss_function(outputs, y_val).item()
+        network_val_loss.append(val_loss)
+        logger.info('Epoch %d, Train loss: %.3f, Validation loss: %.3f', epoch +1, running_loss / nr_batches, val_loss)
+
 
     with torch.no_grad():
         correct = 0
         total = 0
         x_test = torch.from_numpy(x_test)
-        # x_test.cuda()
-        outputs = network(x_test)
         y_test = torch.from_numpy(y_test).long()
+        x_test, y_test = x_test.to(device), y_test.to(device)
+        outputs = network(x_test)
         test_loss = loss_function(outputs, y_test)
-        # y_test.cuda()
         _, predicted = torch.max(outputs.data, 1)
         total += y_test.size(0)
         correct += ((predicted == y_test).sum()).item()
         accuracy = 100 * correct / total
     logger.info('Test loss: %.3f, accuracy of the network: %.3f %%', test_loss.item(), accuracy)
-    return loss, accuracy
+    output_information = {'test': (test_loss.item(), accuracy), 'validation': network_val_loss}
+    return output_information
 
 
 class FcResNet(nn.Module):

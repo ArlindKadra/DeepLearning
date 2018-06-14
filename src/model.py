@@ -8,7 +8,7 @@ from sklearn.preprocessing import OneHotEncoder
 
 class Loader(object):
 
-    def __init__(self):
+    def __init__(self, torch=True):
 
         logger = logging.getLogger(__name__)
         # TODO parse the value from the config file
@@ -28,8 +28,9 @@ class Loader(object):
 
         if True in categorical:
             x, mean, std = utils.feature_normalization(x, categorical)
-            enc = OneHotEncoder(categorical_features=categorical, dtype=np.float32)
-            x = enc.fit_transform(x).todense()
+            if torch:
+                enc = OneHotEncoder(categorical_features=categorical, dtype=np.float32)
+                x = enc.fit_transform(x).todense()
         else:
             x, mean, std = utils.feature_normalization(x, None)
 

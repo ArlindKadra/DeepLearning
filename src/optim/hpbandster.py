@@ -77,8 +77,9 @@ class Slave(Worker):
         """
         loader = Loader()
         x, y, _ = loader.get_dataset()
-        loss, accuracy = cross_validation(int(budget), x, y, config)
+        output = cross_validation(int(budget), x, y, config)
+        validation_loss = output["validation"]
         return ({
-            'loss': np.mean(loss),  # this is the a mandatory field to run hyperband
-            'info': (loss, accuracy)  # can be used for any user-defined information - also mandatory
+            'loss': (np.mean(validation_loss)).item(),  # this is the a mandatory field to run hyperband
+            'info': output  # can be used for any user-defined information - also mandatory
         })

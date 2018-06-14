@@ -22,12 +22,13 @@ def train(x_train, y_train, categorical_indicator):
 class Svm(object):
     # Class which resembles an auto-sklearn svm classifier
 
-    def __init__(self):
-
-        super(Svm, self).__init__()
+    def __init__(self, job_id=666):
+        self.job_id = job_id
 
     def build(self):
 
         return autosklearn.classification.AutoSklearnClassifier(
             include_estimators=["libsvm_svc"], ensemble_size=1,
+            tmp_folder="~kadraa/autosklearn_exp",
             initial_configurations_via_metalearning=0)
+

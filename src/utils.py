@@ -101,7 +101,6 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
             y_train, y_validation = \
             train_test_split(x_train, y_train, test_size=1 / (nr_folds - 1))
         x_test, y_test = x[test_indices], y[test_indices]
-        accuracy, loss = models.fcresnet.train(config, nr_epochs, x_train, y_train, x_test, y_test)
-        accuracy_results.append(accuracy)
-        loss_results.append(loss)
-    return loss_results, accuracy_results
+        output = models.fcresnet.train(config, nr_epochs, x_train, y_train, x_validation, y_validation, x_test, y_test)
+
+    return output
