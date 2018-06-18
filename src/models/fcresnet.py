@@ -1,4 +1,5 @@
 import utils
+from optim.adamw import AdamW, SGDW
 
 import logging
 import ConfigSpace
@@ -8,6 +9,8 @@ import torch.optim as optim
 
 
 def get_config_space(max_num_layers=3, max_num_res_blocks=30):
+
+    optimizers = ['SGD', 'AdamW']
 
     cs = ConfigSpace.ConfigurationSpace()
 
@@ -31,10 +34,28 @@ def get_config_space(max_num_layers=3, max_num_res_blocks=30):
                                                                  upper=10e-1,
                                                                  default_value=10e-2,
                                                                  log=True))
-    cs.add_hyperparameter(ConfigSpace.UniformFloatHyperparameter("momentum",
-                                                                 lower=0.0,
-                                                                 upper=0.9,
-                                                                 default_value=0.9))
+
+    optimizer = ConfigSpace.CategoricalHyperparameter('optimizer', optimizers)
+    cs.add_hyperparameter(optimizer)
+
+    momentum = ConfigSpace.UniformFloatHyperparameter("momentum",
+                                                      lower=0.0,
+                                                      upper=0.9,
+                                                      default_value=0.9)
+    cs.add_hyperparameter(momentum)
+    cs.add_condition(ConfigSpace.EqualsCondition(momentum, optimizer, 'SGD'))
+
+    l2_reg = ConfigSpace.UniformFloatHyperparameter("l2_reg",
+                                                    lower=10e-6,
+                                                    upper=10e-2,
+                                                    default_value=10e-4)
+    cs.add_hyperparameter(l2_reg)
+
+    weight_decay = ConfigSpace.UniformFloatHyperparameter("weight_decay",
+                                                          lower=10e-6,
+                                                          upper=10e-2,
+                                                          default_value=10e-4)
+    cs.add_hyperparameter(weight_decay)
 
     # it is the upper bound of the nr of layers, since the configuration will actually be sampled.
     for i in range(1, max_num_layers + 1):
@@ -52,20 +73,12 @@ def get_config_space(max_num_layers=3, max_num_res_blocks=30):
                                                          default_value=0.5)
         cs.add_hyperparameter(dropout)
 
-        l2_reg = ConfigSpace.UniformFloatHyperparameter("l2_reg_%d" % i,
-                                                        lower=10e-6,
-                                                        upper=10e-2,
-                                                        default_value=10e-4)
-        cs.add_hyperparameter(l2_reg)
 
         if i > 1:
             cond = ConfigSpace.GreaterThanCondition(n_units, num_layers, i - 1)
             cs.add_condition(cond)
 
             cond = ConfigSpace.GreaterThanCondition(dropout, num_layers, i - 1)
-            cs.add_condition(cond)
-
-            cond = ConfigSpace.GreaterThanCondition(l2_reg, num_layers, i - 1)
             cs.add_condition(cond)
 
     return cs
@@ -75,6 +88,7 @@ def validate_output(x):
 
     return x != x
 
+
 def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
     logger = logging.getLogger(__name__)
@@ -83,7 +97,12 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     network = FcResNet(BasicBlock, config, x_train.shape[1], nr_classes).to(device)
     loss_function = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(network.parameters(), config["learning_rate"], momentum=config["momentum"])
+
+    if config['optimizer'] == 'SGD':
+        optimizer = SGDW(network.parameters(), lr=config["learning_rate"], momentum=config["momentum"], weight_decay=config['weight_decay'])
+    elif config['optimizer'] == 'AdamW':
+        optimizer = AdamW(network.parameters(), lr=config['learning_rate'], l2_decay=config['l2_reg'], weight_decay=config['weight_decay'])
+
     logger.info('FcResNet started training')
     network_val_loss = []
     x_val = torch.from_numpy(x_val)
@@ -121,7 +140,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
         outputs = network(x_val)
         val_loss = loss_function(outputs, y_val).item()
         network_val_loss.append(val_loss)
-        logger.info('Epoch %d, Train loss: %.3f, Validation loss: %.3f', epoch +1, running_loss / nr_batches, val_loss)
+        logger.info('Epoch %d, Train loss: %.3f, Validation loss: %.3f', epoch + 1, running_loss / nr_batches, val_loss)
 
 
     with torch.no_grad():
