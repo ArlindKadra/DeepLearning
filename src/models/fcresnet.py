@@ -1,5 +1,6 @@
 import utils
-from optim.adamw import AdamW, SGDW
+from optim.adamw import AdamW
+from optim.sgdw import SGDW
 
 import logging
 import ConfigSpace
@@ -52,8 +53,8 @@ def get_config_space(max_num_layers=3, max_num_res_blocks=30):
     cs.add_hyperparameter(l2_reg)
 
     weight_decay = ConfigSpace.UniformFloatHyperparameter("weight_decay",
-                                                          lower=10e-6,
-                                                          upper=10e-2,
+                                                          lower=10e-5,
+                                                          upper=10e-3,
                                                           default_value=10e-4)
     cs.add_hyperparameter(weight_decay)
 
