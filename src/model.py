@@ -5,15 +5,18 @@ import openml
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 
+_x, _y, _categorical, _mean, _std, _task_id
+
 
 class Loader(object):
 
     def __init__(self, torch=True):
 
+        global _x, _y, _categorical, _mean, _std, _task_id
         logger = logging.getLogger(__name__)
         # TODO parse the value from the config file
-        task_id = 167141
-        dataset = openml.tasks.get_task(task_id).get_dataset()
+        _task_id = 167141
+        dataset = openml.tasks.get_task(_task_id).get_dataset()
 
         x, y, categorical = dataset.get_data(target=dataset.default_target_attribute,
                                              return_categorical_indicator=True)
@@ -35,20 +38,25 @@ class Loader(object):
             x, mean, std = utils.feature_normalization(x, None)
 
         logger.info("Data normalized")
-        self._x = x
-        self._y = y
-        self._categorical = categorical
-        self._mean = mean
-        self._std = std
 
-    def get_dataset(self):
+        _x = x
+        _y = y
+        _categorical = categorical
+        _mean = mean
+        _std = std
 
-        return self._x, self._y, self._categorical
+def get_dataset(self):
 
-    def get_mean(self):
+    return _x, _y, _categorical
 
-        return self._mean
+def get_mean(self):
 
-    def get_std(self):
+    return _mean
 
-        return self._std
+def get_std(self):
+
+    return _std
+
+def get_task_id(self):
+
+    return _task_id

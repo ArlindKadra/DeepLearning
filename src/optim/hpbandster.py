@@ -2,12 +2,13 @@ import numpy as np
 import os
 import pickle
 
-from model import Loader
+import model
 from utils import cross_validation
 from models import fcresnet
 
 from hpbandster.optimizers import BOHB
 import hpbandster.core.nameserver as hpns
+import hpbandster.core.result as hpres
 from hpbandster.core.worker import Worker
 
 
@@ -15,6 +16,7 @@ class Master(object):
 
     def __init__(self, num_workers, num_iterations, run_id, array_id, working_dir, nic_name):
 
+        result_logger = hpres.json_result_logger(directory='./task_%i/fcresnet/' % model.get_task_id, overwrite=True)
         config_space = fcresnet.get_config_space()
 
         if array_id == 1:
@@ -33,8 +35,9 @@ class Master(object):
                       eta=3, min_budget=27, max_budget=243,
                       host=ns_host,
                       nameserver=ns_host,
+                      result_logger=result_logger,
                       nameserver_port=ns_port,
-                      ping_interval=3600,
+                      ping_interval=3600
                       )
 
             res = hb.run(n_iterations=num_iterations,
@@ -75,8 +78,7 @@ class Slave(Worker):
             config: A hyperparameter configuration drawn from the ConfigSpace.
             budget: budget on which the training of the network will be limited.
         """
-        loader = Loader()
-        x, y, _ = loader.get_dataset()
+        x, y, _ = model.get_dataset()
         output = cross_validation(int(budget), x, y, config)
         validation_loss = output["validation"]
         return ({

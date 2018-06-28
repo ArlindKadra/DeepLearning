@@ -6,7 +6,6 @@ import logging
 import ConfigSpace
 import torch
 import torch.nn as nn
-import torch.optim as optim
 
 
 def get_config_space(max_num_layers=3, max_num_res_blocks=30):
