@@ -5,7 +5,7 @@ import openml
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 
-_x, _y, _categorical, _mean, _std, _task_id
+_x, _y, _categorical, _mean, _std, _task_id = None
 
 
 class Loader(object):
