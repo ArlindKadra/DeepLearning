@@ -17,7 +17,7 @@ def train(x, y, categorical_indicator):
     random_forest = RandomForest().build()
     random_forest.fit(x_train, y_train, feat_type=feat_type)
     y_prediction = random_forest.predict(x_test)
-    logger.info('Random Forest accuracy score: %.3f %%', accuracy_score(y_test, y_prediction))
+    logger.info('Random Forest accuracy score: %.3f %%', (accuracy_score(y_test, y_prediction)).item())
 
 class RandomForest(object):
     # Class which resembles an auto-sklearn random forest classifier

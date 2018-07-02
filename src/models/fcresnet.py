@@ -1,7 +1,7 @@
 import utils
 from optim.adamw import AdamW
 from optim.sgdw import SGDW
-
+from optim.lr_scheduler import ScheduledOptimizer, CosineScheduler
 import logging
 import ConfigSpace
 import torch
@@ -103,6 +103,10 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
     elif config['optimizer'] == 'AdamW':
         optimizer = AdamW(network.parameters(), lr=config['learning_rate'], l2_decay=config['l2_reg'], weight_decay=config['weight_decay'])
 
+    anneal_max_epoch = 1 / 10 * num_epochs
+    anneal_multiply = 2
+    anneal_epoch = 0
+    scheduled_optimizer = ScheduledOptimizer(optimizer, CosineScheduler)
     logger.info('FcResNet started training')
     network_val_loss = []
     x_val = torch.from_numpy(x_val)
@@ -123,7 +127,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
             y = torch.from_numpy(y).long()
             x, y = x.to(device), y.to(device)
             # forward + backward + optimize
-            optimizer.zero_grad()  # zero the gradient buffers
+            scheduled_optimizer.zero_grad()  # zero the gradient buffers
             output = network(x)
 
             # stop training if we have NaN values in the output
@@ -134,13 +138,24 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
             loss = loss_function(output, y)
             loss.backward()
-            optimizer.step()
+            scheduled_optimizer.step()
             running_loss += loss.item()
             nr_batches += 1
         outputs = network(x_val)
         val_loss = loss_function(outputs, y_val).item()
         network_val_loss.append(val_loss)
         logger.info('Epoch %d, Train loss: %.3f, Validation loss: %.3f', epoch + 1, running_loss / nr_batches, val_loss)
+        logger.info('Learning rate: %.3f', scheduled_optimizer.get_learning_rate())
+        logger.info('Weight decay: %.3f', scheduled_optimizer.get_weight_decay())
+        # set the anneal schedule progress
+        if anneal_epoch < anneal_max_epoch:
+            anneal_epoch += 1
+        elif anneal_epoch == anneal_max_epoch:
+            anneal_epoch = 0
+            anneal_max_epoch = anneal_max_epoch * anneal_multiply
+        else:
+            logger.info("Something went wrong, epochs > max epochs in restart")
+
 
 
     with torch.no_grad():

@@ -19,7 +19,7 @@ class Master(object):
         config_space = fcresnet.get_config_space()
 
         if array_id == 1:
-            
+
             result_logger = hpres.json_result_logger(directory=os.path.join(working_dir,'task_%i' % model.get_task_id, 'fcresnet'), overwrite=True)
             # start nameserver
             ns = hpns.NameServer(run_id=run_id, nic_name=nic_name,
