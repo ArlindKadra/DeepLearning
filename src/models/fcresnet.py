@@ -7,10 +7,12 @@ import ConfigSpace
 import torch
 import torch.nn as nn
 
-
-def get_config_space(max_num_layers=3, max_num_res_blocks=30):
+# TODO Max number of layers and res blocks should be read from the config file
+def get_config_space(max_num_layers=2, max_num_res_blocks=25):
 
     optimizers = ['SGD', 'AdamW']
+    dropout_values = ['True', 'False']
+    block_types = ['BasicRes', 'PreRes']
 
     cs = ConfigSpace.ConfigurationSpace()
 
@@ -20,7 +22,7 @@ def get_config_space(max_num_layers=3, max_num_res_blocks=30):
                                                           default_value=2)
     cs.add_hyperparameter(num_layers)
     num_res_blocks = ConfigSpace.UniformIntegerHyperparameter("num_res_blocks",
-                                                              lower=10,
+                                                              lower=15,
                                                               upper=max_num_res_blocks,
                                                               default_value=10)
     cs.add_hyperparameter(num_res_blocks)
@@ -29,12 +31,13 @@ def get_config_space(max_num_layers=3, max_num_res_blocks=30):
                                                                    upper=256,
                                                                    default_value=16,
                                                                    log=True))
+    res_block_type = ConfigSpace.CategoricalHyperparameter('block_type', block_types)
+    cs.add_hyperparameter(res_block_type)
     cs.add_hyperparameter(ConfigSpace.UniformFloatHyperparameter("learning_rate",
-                                                                 lower=10e-6,
+                                                                 lower=10e-4,
                                                                  upper=10e-1,
                                                                  default_value=10e-2,
                                                                  log=True))
-
     optimizer = ConfigSpace.CategoricalHyperparameter('optimizer', optimizers)
     cs.add_hyperparameter(optimizer)
 
@@ -56,6 +59,8 @@ def get_config_space(max_num_layers=3, max_num_res_blocks=30):
                                                           upper=10e-3,
                                                           default_value=10e-4)
     cs.add_hyperparameter(weight_decay)
+    dropout_flag = ConfigSpace.CategoricalHyperparameter('dropout', dropout_values)
+    cs.add_hyperparameter(dropout_flag)
 
     # it is the upper bound of the nr of layers, since the configuration will actually be sampled.
     for i in range(1, max_num_layers + 1):
@@ -72,13 +77,13 @@ def get_config_space(max_num_layers=3, max_num_res_blocks=30):
                                                          upper=0.9,
                                                          default_value=0.5)
         cs.add_hyperparameter(dropout)
-
+        cs.add_condition(ConfigSpace.EqualsCondition(dropout, dropout_flag, 'True'))
 
         if i > 1:
             cond = ConfigSpace.GreaterThanCondition(n_units, num_layers, i - 1)
             cs.add_condition(cond)
-
-            cond = ConfigSpace.GreaterThanCondition(dropout, num_layers, i - 1)
+            # every 2 fully connected layers / 1 dropout layer in between
+            cond = ConfigSpace.GreaterThanCondition(dropout, num_layers, i)
             cs.add_condition(cond)
 
     return cs
@@ -95,13 +100,27 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
     nr_classes = max(y_train) + 1
     batch_size = config["batch_size"]
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    network = FcResNet(BasicBlock, config, x_train.shape[1], nr_classes).to(device)
+    if config['block_type'] == 'BasicRes':
+        network = FcResNet(BasicBlock, config, x_train.shape[1], nr_classes).to(device)
+    elif config['block_type'] == 'PreRes':
+        network = FcResNet(PreActBlock, config, x_train.shape[1], nr_classes).to(device)
+    else:
+        logger.error("Unexpected residual block type")
+        raise ValueError("Unexpected residual block type")
+
+    total_params = sum(p.numel() for p in network.parameters() if p.requires_grad)
+    logger.info("Number of network parameters %d", total_params)
     loss_function = nn.CrossEntropyLoss()
 
     if config['optimizer'] == 'SGD':
-        optimizer = SGDW(network.parameters(), lr=config["learning_rate"], momentum=config["momentum"], weight_decay=config['weight_decay'])
+        optimizer = SGDW(network.parameters(), lr=config["learning_rate"],
+                         momentum=config["momentum"], weight_decay=config['weight_decay'])
     elif config['optimizer'] == 'AdamW':
-        optimizer = AdamW(network.parameters(), lr=config['learning_rate'], l2_decay=config['l2_reg'], weight_decay=config['weight_decay'])
+        optimizer = AdamW(network.parameters(), lr=config['learning_rate'],
+                          l2_decay=config['l2_reg'], weight_decay=config['weight_decay'])
+    else:
+        logger.error("Unexpected optimizer value")
+        raise ValueError("Unexpected optimizer value")
 
     anneal_max_epoch = int(1 / 10 * num_epochs)
     anneal_multiply = 2
@@ -155,8 +174,6 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
             anneal_max_epoch = anneal_max_epoch * anneal_multiply
         else:
             logger.info("Something went wrong, epochs > max epochs in restart")
-
-
 
     with torch.no_grad():
         correct = 0
@@ -217,13 +234,18 @@ class BasicBlock(nn.Module):
         super(BasicBlock, self).__init__()
         self.fc_layers = []
         self.batch_norm_layers = []
+        self.dropout_layers = []
         self.relu = nn.ReLU(inplace=True)
         self.fc_layers.append(nn.Linear(in_features, config["num_units_1"]))
         self.batch_norm_layers.append(nn.BatchNorm1d(config["num_units_1"]))
+        if 'dropout_1' in config:
+            self.dropout_layers.append(nn.Dropout(p=config['dropout_1'], inplace=True))
 
         for i in range(2, config["num_layers"] + 1):
             self.fc_layers.append(nn.Linear(config["num_units_%d" % (i-1)], config["num_units_%d" % i]))
             self.batch_norm_layers.append(nn.BatchNorm1d(config["num_units_%d" % i]))
+            if 'dropout_%d' % i in config:
+                self.dropout_layers.append(nn.Dropout(p=config['dropout_%d' % i], inplace=True))
 
     def forward(self, x):
 
@@ -233,11 +255,54 @@ class BasicBlock(nn.Module):
             out = self.fc_layers[i](out)
             out = self.batch_norm_layers[i](out)
             out = self.relu(out)
+            if len(self.dropout_layers) > 0:
+                out = self.dropout_layers[i](out)
+
         out = self.fc_layers[len(self.fc_layers) - 1](out)
         out = self.batch_norm_layers[len(self.fc_layers) - 1](out)
         if residual.size()[1] != out.size()[1]:
             projection = nn.Linear(residual.size()[1], out.size()[1])
             residual = projection(residual)
+
         out += residual
         out = self.relu(out)
+        return out
+
+
+class PreActBlock(nn.Module):
+
+    def __init__(self, in_features, config):
+
+        super(PreActBlock, self).__init__()
+        self.fc_layers = []
+        self.batch_norm_layers = []
+        self.dropout_layers = []
+        self.relu = nn.ReLU(inplace=True)
+        self.fc_layers.append(nn.Linear(in_features, config["num_units_1"]))
+        self.batch_norm_layers.append(nn.BatchNorm1d(config["num_units_1"]))
+        if 'dropout_1' in config:
+            self.dropout_layers.append(nn.Dropout(p=config['dropout_1'], inplace=True))
+
+        for i in range(2, config["num_layers"] + 1):
+            self.fc_layers.append(nn.Linear(config["num_units_%d" % (i-1)], config["num_units_%d" % i]))
+            self.batch_norm_layers.append(nn.BatchNorm1d(config["num_units_%d" % i]))
+            if 'dropout_%d' % i in config:
+                self.dropout_layers.append(nn.Dropout(p=config['dropout_%d' % i], inplace=True))
+
+    def forward(self, x):
+
+        residual = x
+        out = x
+        for i in range(0, len(self.fc_layers)):
+            out = self.batch_norm_layers[i](out)
+            out = self.relu(out)
+            out = self.fc_layers[i](out)
+            if i < len(self.dropout_layers):
+                out = self.dropout_layers[i](out)
+
+        if residual.size()[1] != out.size()[1]:
+            projection = nn.Linear(residual.size()[1], out.size()[1])
+            residual = projection(residual)
+
+        out += residual
         return out
