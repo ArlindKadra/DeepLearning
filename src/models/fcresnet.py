@@ -103,7 +103,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
     elif config['optimizer'] == 'AdamW':
         optimizer = AdamW(network.parameters(), lr=config['learning_rate'], l2_decay=config['l2_reg'], weight_decay=config['weight_decay'])
 
-    anneal_max_epoch = 1 / 10 * num_epochs
+    anneal_max_epoch = int(1 / 10 * num_epochs)
     anneal_multiply = 2
     anneal_epoch = 0
     scheduled_optimizer = ScheduledOptimizer(optimizer, CosineScheduler)
@@ -138,7 +138,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
             loss = loss_function(output, y)
             loss.backward()
-            scheduled_optimizer.step()
+            scheduled_optimizer.step(anneal_epoch / anneal_max_epoch)
             running_loss += loss.item()
             nr_batches += 1
         outputs = network(x_val)
