@@ -232,37 +232,39 @@ class BasicBlock(nn.Module):
     def __init__(self, in_features, config):
 
         super(BasicBlock, self).__init__()
-        self.fc_layers = []
-        self.batch_norm_layers = []
-        self.dropout_layers = []
+        self.number_layers = config["num_layers"]
         self.relu = nn.ReLU(inplace=True)
-        self.fc_layers.append(nn.Linear(in_features, config["num_units_1"]))
-        self.batch_norm_layers.append(nn.BatchNorm1d(config["num_units_1"]))
-        if 'dropout_1' in config:
-            self.dropout_layers.append(nn.Dropout(p=config['dropout_1'], inplace=True))
+        self.projection = None
+        setattr(self, "fc_1", nn.Linear(in_features, config["num_units_1"]))
+        setattr(self, "b_norm_1", nn.BatchNorm1d(config["num_units_1"]))
 
-        for i in range(2, config["num_layers"] + 1):
-            self.fc_layers.append(nn.Linear(config["num_units_%d" % (i-1)], config["num_units_%d" % i]))
-            self.batch_norm_layers.append(nn.BatchNorm1d(config["num_units_%d" % i]))
+        if 'dropout_1' in config:
+            setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_1']))
+
+        for i in range(2, self.number_layers + 1):
+            setattr(self, 'fc_%d' % i, nn.Linear(config["num_units_%d" % (i-1)], config["num_units_%d" % i]))
+            setattr(self, 'b_norm_%d' % i, nn.BatchNorm1d(config["num_units_%d" % i]))
             if 'dropout_%d' % i in config:
-                self.dropout_layers.append(nn.Dropout(p=config['dropout_%d' % i], inplace=True))
+                setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
+
+        if in_features != config["num_units_%d" % self.number_layers]:
+            self.projection = nn.Linear(in_features, config["num_units_%d" % self.number_layers])
 
     def forward(self, x):
 
         residual = x
         out = x
-        for i in range(0, len(self.fc_layers)-1):
-            out = self.fc_layers[i](out)
-            out = self.batch_norm_layers[i](out)
+        for i in range(0, self.number_layers - 1):
+            out = getattr(self, 'fc_%d' % i)(out)
+            out = getattr(self, 'b_norm_%d' % i)(out)
             out = self.relu(out)
             if len(self.dropout_layers) > 0:
-                out = self.dropout_layers[i](out)
+                out = getattr(self, 'dropout_%d' % i)(out)
 
-        out = self.fc_layers[len(self.fc_layers) - 1](out)
-        out = self.batch_norm_layers[len(self.fc_layers) - 1](out)
-        if residual.size()[1] != out.size()[1]:
-            projection = nn.Linear(residual.size()[1], out.size()[1])
-            residual = projection(residual)
+        out = getattr(self, 'fc_%d' % self.number_layers)(out)
+        out = getattr(self, 'b_norm_%d' % self.number_layers)(out)
+        if self.projection is not None:
+            residual = self.projection(residual)
 
         out += residual
         out = self.relu(out)
@@ -274,34 +276,38 @@ class PreActBlock(nn.Module):
     def __init__(self, in_features, config):
 
         super(PreActBlock, self).__init__()
-        self.fc_layers = []
-        self.batch_norm_layers = []
-        self.dropout_layers = []
-        self.batch_norm_layers.append(nn.BatchNorm1d(in_features))
-        self.fc_layers.append(nn.Linear(in_features, config["num_units_1"]))
+
+        self.number_layers = config["num_layers"]
+        self.relu = nn.ReLU(inplace=True)
+        self.projection = None
+        setattr(self, "b_norm_1", nn.BatchNorm1d(in_features))
+        setattr(self, "fc_1", nn.Linear(in_features, config["num_units_1"]))
+
         if 'dropout_1' in config:
-            self.dropout_layers.append(nn.Dropout(p=config['dropout_1'], inplace=True))
+            setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_1']))
         self.relu = nn.ReLU(inplace=True)
         for i in range(2, config["num_layers"] + 1):
-            self.batch_norm_layers.append(nn.BatchNorm1d(config["num_units_%d" % (i - 1)]))
-            self.fc_layers.append(nn.Linear(config["num_units_%d" % (i - 1)], config["num_units_%d" % i]))
+            setattr(self, "b_norm_1", nn.BatchNorm1d(config["num_units_%d" % (i - 1)]))
+            setattr(self, "fc_1", nn.Linear(config["num_units_%d" % (i - 1)], config["num_units_%d" % i]))
             if 'dropout_%d' % i in config:
-                self.dropout_layers.append(nn.Dropout(p=config['dropout_%d' % i], inplace=True))
+                setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d' % i]))
+
+        if in_features != config["num_units_%d" % self.number_layers]:
+            self.projection = nn.Linear(in_features, config["num_units_%d" % self.number_layers])
 
     def forward(self, x):
 
         residual = x
         out = x
         for i in range(0, len(self.fc_layers)):
-            out = self.batch_norm_layers[i](out)
+            out = getattr(self, 'b_norm_%d' % i)(out)
             out = self.relu(out)
-            out = self.fc_layers[i](out)
+            out = getattr(self, 'fc_%d' % i)(out)
             if i < len(self.dropout_layers):
-                out = self.dropout_layers[i](out)
+                out = out = getattr(self, 'dropout_%d' % i)(out)
 
-        if residual.size()[1] != out.size()[1]:
-            projection = nn.Linear(residual.size()[1], out.size()[1])
-            residual = projection(residual)
+        if self.projection is not None:
+            residual = self.projection(residual)
 
         out += residual
         return out
