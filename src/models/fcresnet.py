@@ -277,15 +277,14 @@ class PreActBlock(nn.Module):
         self.fc_layers = []
         self.batch_norm_layers = []
         self.dropout_layers = []
-        self.relu = nn.ReLU(inplace=True)
+        self.batch_norm_layers.append(nn.BatchNorm1d(in_features))
         self.fc_layers.append(nn.Linear(in_features, config["num_units_1"]))
-        self.batch_norm_layers.append(nn.BatchNorm1d(config["num_units_1"]))
         if 'dropout_1' in config:
             self.dropout_layers.append(nn.Dropout(p=config['dropout_1'], inplace=True))
-
+        self.relu = nn.ReLU(inplace=True)
         for i in range(2, config["num_layers"] + 1):
-            self.fc_layers.append(nn.Linear(config["num_units_%d" % (i-1)], config["num_units_%d" % i]))
-            self.batch_norm_layers.append(nn.BatchNorm1d(config["num_units_%d" % i]))
+            self.batch_norm_layers.append(nn.BatchNorm1d(config["num_units_%d" % (i - 1)]))
+            self.fc_layers.append(nn.Linear(config["num_units_%d" % (i - 1)], config["num_units_%d" % i]))
             if 'dropout_%d' % i in config:
                 self.dropout_layers.append(nn.Dropout(p=config['dropout_%d' % i], inplace=True))
 
