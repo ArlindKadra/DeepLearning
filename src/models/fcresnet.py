@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 
 # TODO Max number of layers and res blocks should be read from the config file
-def get_config_space(max_num_layers=2, max_num_res_blocks=25):
+def get_config_space(max_num_layers=2, max_num_res_blocks=15):
 
     optimizers = ['SGD', 'AdamW']
     dropout_values = ['True', 'False']
@@ -22,9 +22,9 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=25):
                                                           default_value=2)
     cs.add_hyperparameter(num_layers)
     num_res_blocks = ConfigSpace.UniformIntegerHyperparameter("num_res_blocks",
-                                                              lower=15,
+                                                              lower=5,
                                                               upper=max_num_res_blocks,
-                                                              default_value=10)
+                                                              default_value=5)
     cs.add_hyperparameter(num_res_blocks)
     cs.add_hyperparameter(ConfigSpace.UniformIntegerHyperparameter("batch_size",
                                                                    lower=8,
@@ -150,7 +150,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
             output = network(x)
 
             # stop training if we have NaN values in the output
-            if utils.contains_nan(output.data.numpy()):
+            if utils.contains_nan((output.cpu()).data.numpy()):
                 # TODO switch to logger exception
                 logger.error('Output contains NaN values')
                 raise ValueError("NaN value in output")
@@ -254,11 +254,11 @@ class BasicBlock(nn.Module):
 
         residual = x
         out = x
-        for i in range(0, self.number_layers - 1):
+        for i in range(1, self.number_layers):
             out = getattr(self, 'fc_%d' % i)(out)
             out = getattr(self, 'b_norm_%d' % i)(out)
             out = self.relu(out)
-            if len(self.dropout_layers) > 0:
+            if getattr(self, 'dropout_%d' % i, None) is not None:
                 out = getattr(self, 'dropout_%d' % i)(out)
 
         out = getattr(self, 'fc_%d' % self.number_layers)(out)
@@ -286,7 +286,7 @@ class PreActBlock(nn.Module):
         if 'dropout_1' in config:
             setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_1']))
         self.relu = nn.ReLU(inplace=True)
-        for i in range(2, config["num_layers"] + 1):
+        for i in range(2, self.number_layers + 1):
             setattr(self, "b_norm_1", nn.BatchNorm1d(config["num_units_%d" % (i - 1)]))
             setattr(self, "fc_1", nn.Linear(config["num_units_%d" % (i - 1)], config["num_units_%d" % i]))
             if 'dropout_%d' % i in config:
@@ -299,11 +299,11 @@ class PreActBlock(nn.Module):
 
         residual = x
         out = x
-        for i in range(0, len(self.fc_layers)):
+        for i in range(1, self.number_layers + 1):
             out = getattr(self, 'b_norm_%d' % i)(out)
             out = self.relu(out)
             out = getattr(self, 'fc_%d' % i)(out)
-            if i < len(self.dropout_layers):
+            if getattr(self, 'dropout_%d' % i, None) is not None:
                 out = out = getattr(self, 'dropout_%d' % i)(out)
 
         if self.projection is not None:
