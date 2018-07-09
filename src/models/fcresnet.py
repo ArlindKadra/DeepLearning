@@ -127,6 +127,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
     anneal_epoch = 0
     scheduled_optimizer = ScheduledOptimizer(optimizer, CosineScheduler)
     logger.info('FcResNet started training')
+    # Save the validation accuracy for each epoch
     network_val_loss = []
     x_val = torch.from_numpy(x_val)
     x_val.requires_grad_(False)
@@ -138,6 +139,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
         running_loss = 0.0
         nr_batches = 0
+        # train the network
         for i in range(0, (x_train.shape[0] - batch_size), batch_size):
             # get the inputs
             x = x_train[i:i + batch_size]
@@ -160,6 +162,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
             scheduled_optimizer.step(anneal_epoch / anneal_max_epoch)
             running_loss += loss.item()
             nr_batches += 1
+
         outputs = network(x_val)
         val_loss = loss_function(outputs, y_val).item()
         network_val_loss.append(val_loss)
@@ -285,12 +288,12 @@ class PreActBlock(nn.Module):
 
         if 'dropout_1' in config:
             setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_1']))
-        self.relu = nn.ReLU(inplace=True)
+
         for i in range(2, self.number_layers + 1):
-            setattr(self, "b_norm_1", nn.BatchNorm1d(config["num_units_%d" % (i - 1)]))
-            setattr(self, "fc_1", nn.Linear(config["num_units_%d" % (i - 1)], config["num_units_%d" % i]))
+            setattr(self, "b_norm_%d" % i, nn.BatchNorm1d(config["num_units_%d" % (i - 1)]))
+            setattr(self, "fc_%d" % i, nn.Linear(config["num_units_%d" % (i - 1)], config["num_units_%d" % i]))
             if 'dropout_%d' % i in config:
-                setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d' % i]))
+                setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
 
         if in_features != config["num_units_%d" % self.number_layers]:
             self.projection = nn.Linear(in_features, config["num_units_%d" % self.number_layers])
