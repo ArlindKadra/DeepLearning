@@ -11,7 +11,7 @@ import torch.nn as nn
 def get_config_space(max_num_layers=2, max_num_res_blocks=15):
 
     optimizers = ['SGD', 'AdamW']
-    dropout_values = ['True', 'False']
+    dropout_values = ['Yes', 'No']
     block_types = ['BasicRes', 'PreRes']
 
     cs = ConfigSpace.ConfigurationSpace()
@@ -77,7 +77,7 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=15):
                                                          upper=0.9,
                                                          default_value=0.5)
         cs.add_hyperparameter(dropout)
-        dropout_cond = ConfigSpace.EqualsCondition(dropout, dropout_flag, 'True')
+        dropout_cond = ConfigSpace.EqualsCondition(dropout, dropout_flag, 'Yes')
 
         if i > 1:
             cond = ConfigSpace.GreaterThanCondition(n_units, num_layers, i - 1)

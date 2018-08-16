@@ -109,9 +109,9 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
         test_accuracy += output['test'][1]
 
     # average the values over the folds
-    val_loss_epochs /= nr_folds
-    test_loss /= nr_folds
-    test_accuracy /= nr_folds
+    val_loss_epochs = val_loss_epochs / nr_folds
+    test_loss = test_loss / nr_folds
+    test_accuracy = test_accuracy / nr_folds
     result = {'test_loss': test_loss, 'test_accuracy': test_accuracy,
-              'val_loss': val_loss_epochs}
+              'val_loss': list(val_loss_epochs)}
     return result

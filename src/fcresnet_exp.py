@@ -1,6 +1,8 @@
+from visualize import plot_fcresnet
 from optim.hpbandster import Master
 import utils
-
+import model
+import os
 import argparse
 import logging
 
@@ -20,16 +22,19 @@ def main():
     # initialize logging
     logger = logging.getLogger(__name__)
     # aTODO put verbose into configuration file
-    verbose = False
+    verbose = True
     utils.setup_logging(args.run_id + "_" +  str(args.array_id), logging.DEBUG if verbose else logging.INFO)
     logger.info('DeepResNet Experiment started')
     # benchmark_suite = openml.study.get_study("99", "tasks")
     # task_id = random.choice(list(benchmark_suite.tasks))
-    Master(args.num_workers, args.num_iterations, args.run_id, args.array_id, args.working_dir, args.nic_name)
+    working_dir = os.path.join(args.working_dir,'task_%i' % model.get_task_id(),'fcresnet')
+    Master(args.num_workers, args.num_iterations, args.run_id, args.array_id, working_dir, args.nic_name)
     # config_space = fcresnet.get_config_space()
     # config = config_space.sample_configuration(1)
     # result = utils.cross_validation(x, y, fcresnet.FcResNet, config)
     # logging.info('Cross Validation loss: %.3f, accuracy %.3f', result[0], result[1])
+    plot_fcresnet.plot_budgets_test_loss(working_dir)
+    plot_fcresnet.plot_val_loss(working_dir)
 
 
 if __name__ == '__main__':

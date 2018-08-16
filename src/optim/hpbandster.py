@@ -14,10 +14,9 @@ from hpbandster.core.worker import Worker
 
 class Master(object):
 
-    def __init__(self, num_workers, num_iterations, run_id, array_id, base_dir, nic_name):
+    def __init__(self, num_workers, num_iterations, run_id, array_id, working_dir, nic_name):
 
         config_space = fcresnet.get_config_space()
-        working_dir = os.path.join(base_dir,'task_%i' % model.get_task_id(),'fcresnet')
         if array_id == 1:
 
             result_logger = hpres.json_result_logger(directory=working_dir, overwrite=True)

@@ -1,16 +1,18 @@
+import os
 import pickle
 import json
 import numpy as np
-import matplotlib as mpl
+import matplotlib
+matplotlib.use('agg')
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 sns.set()
 
-
-def load_data():
+def load_data(working_dir):
     # TODO build the path
-    with open("C:\\Users\\Lindarx\\Desktop\\Teza\\results.json", "r") as fp:
+    with open(os.path.join(working_dir, "results.json"), "r") as fp:
         accuracies = {}
         val_losses = {}
         for line in fp:
@@ -34,11 +36,10 @@ def load_data():
         return accuracies, val_losses
 
 
-accuracies, val_losses = load_data()
 
-
-def plot_budgets_test_loss():
-
+def plot_budgets_test_loss(working_dir):
+    
+    accuracies, val_losses = load_data(working_dir)
     # Create an axes instance
     ax = plt.subplot(111)
     data_plot = []
@@ -51,13 +52,14 @@ def plot_budgets_test_loss():
     ax.set_xlabel("Budget (epochs)")
     ax.set_ylabel("Test Loss")
     ax.set_title("AutoFCResnet")
-    plt.show()
+    #plt.show()
+    # Save the figure
+    plt.savefig(os.path.join(working_dir, 'budget_test_loss.png'), bbox_inches='tight')
 
-plot_budgets_test_loss()
 
-def plot_val_loss():
+def plot_val_loss(working_dir):
 
-    with open("C:\\Users\\Lindarx\\Desktop\\Teza\\results.pkl", "rb") as fp:
+    with open(os.path.join(working_dir, "results.pkl"), "rb") as fp:
         result = pickle.load(fp)
 
     run_id = result.get_incumbent_id()
@@ -70,5 +72,6 @@ def plot_val_loss():
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Validation Loss")
     ax.set_title("Best Hyperparameter Configuration")
-    plt.show()
-plot_val_loss()
+    #plt.show()
+    # Save the figure
+    plt.savefig(os.path.join(working_dir, 'validation_curve.png'), bbox_inches='tight')
