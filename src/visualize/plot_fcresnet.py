@@ -52,10 +52,10 @@ def plot_budgets_test_loss(working_dir):
     ax.set_xlabel("Budget (epochs)")
     ax.set_ylabel("Test Loss")
     ax.set_title("AutoFCResnet")
-    #plt.show()
+    # plt.show()
     # Save the figure
     plt.savefig(os.path.join(working_dir, 'budget_test_loss.png'), bbox_inches='tight')
-
+    plt.gcf().clear()
 
 def plot_val_loss(working_dir):
 
@@ -65,13 +65,16 @@ def plot_val_loss(working_dir):
     run_id = result.get_incumbent_id()
     runs = result.get_runs_by_id(run_id)
     best_run = runs[-1]
-    budget = best_run.budget
+    # budget = best_run.budget
     validation_curve = best_run.info['val_loss']
-    ax = plt.subplot(111)
+    ax = plt.subplot(222)
     plt.plot(validation_curve)
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Validation Loss")
     ax.set_title("Best Hyperparameter Configuration")
-    #plt.show()
+    # plt.show()
     # Save the figure
     plt.savefig(os.path.join(working_dir, 'validation_curve.png'), bbox_inches='tight')
+
+plot_budgets_test_loss()
+plot_val_loss()

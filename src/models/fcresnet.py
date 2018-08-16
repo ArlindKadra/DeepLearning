@@ -79,7 +79,7 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=15):
         cs.add_hyperparameter(dropout)
         dropout_cond = ConfigSpace.EqualsCondition(dropout, dropout_flag, 'Yes')
 
-        if i > 1:
+        if i >= 1:
             cond = ConfigSpace.GreaterThanCondition(n_units, num_layers, i - 1)
             cs.add_condition(cond)
             # every 2 fully connected layers / 1 dropout layer in between
