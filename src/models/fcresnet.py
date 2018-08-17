@@ -80,8 +80,9 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=15):
         dropout_cond = ConfigSpace.EqualsCondition(dropout, dropout_flag, 'Yes')
 
         if i >= 1:
-            cond = ConfigSpace.GreaterThanCondition(n_units, num_layers, i - 1)
-            cs.add_condition(cond)
+            cond = ConfigSpace.GreaterThanCondition(n_units, num_layers, i)
+            equals_cond = ConfigSpace.EqualsCondition(n_units, num_layers, i)
+            cs.add_condition(ConfigSpace.OrConjunction(cond, equals_cond))
             # every 2 fully connected layers / 1 dropout layer in between
             cond = ConfigSpace.GreaterThanCondition(dropout, num_layers, i)
             cs.add_condition(ConfigSpace.AndConjunction(cond, dropout_cond))

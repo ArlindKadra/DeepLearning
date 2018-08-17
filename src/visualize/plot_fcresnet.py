@@ -76,5 +76,3 @@ def plot_val_loss(working_dir):
     # Save the figure
     plt.savefig(os.path.join(working_dir, 'validation_curve.png'), bbox_inches='tight')
 
-plot_budgets_test_loss()
-plot_val_loss()
