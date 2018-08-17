@@ -15,12 +15,10 @@ _task_id = None
 
 class Loader(object):
 
-    def __init__(self, torch=True):
+    def __init__(self, task_id=3, torch=True):
 
         global _x, _y, _categorical, _mean, _std, _task_id
         logger = logging.getLogger(__name__)
-        # TODO parse the value from the config file
-        _task_id = 167141
         dataset = openml.tasks.get_task(_task_id).get_dataset()
 
         x, y, categorical = dataset.get_data(target=dataset.default_target_attribute,
@@ -46,6 +44,7 @@ class Loader(object):
 
         _x = x
         _y = y
+        _task_id = task_id
         _categorical = categorical
         _mean = mean
         _std = std
@@ -66,4 +65,3 @@ def get_task_id():
 
     return _task_id
 
-Loader()

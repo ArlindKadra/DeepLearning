@@ -1,17 +1,18 @@
-import os
-import pickle
-import json
-import numpy as np
 import matplotlib
 matplotlib.use('agg')
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import numpy as np
+import os
+import pickle
+import json
+
 sns.set()
 
+
 def load_data(working_dir):
-    # TODO build the path
+
     with open(os.path.join(working_dir, "results.json"), "r") as fp:
         accuracies = {}
         val_losses = {}
