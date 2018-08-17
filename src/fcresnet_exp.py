@@ -25,8 +25,6 @@ def main():
     verbose = True
     utils.setup_logging(args.run_id + "_" +  str(args.array_id), logging.DEBUG if verbose else logging.INFO)
     logger.info('DeepResNet Experiment started')
-    # benchmark_suite = openml.study.get_study("99", "tasks")
-    # task_id = random.choice(list(benchmark_suite.tasks))
     working_dir = os.path.join(args.working_dir,'task_%i' % model.get_task_id(),'fcresnet')
     Master(args.num_workers, args.num_iterations, args.run_id, args.array_id, working_dir, args.nic_name)
     # config_space = fcresnet.get_config_space()
