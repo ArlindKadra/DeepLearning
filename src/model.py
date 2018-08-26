@@ -24,7 +24,8 @@ class Loader(object):
 
         x, y, categorical = dataset.get_data(target=dataset.default_target_attribute,
                                              return_categorical_indicator=True)
-        logger.info("Data Loaded")
+
+        logger.info("Data from task id %d Loaded", _task_id)
 
         # TODO use mean or other ways to fill the missing values.
         # For the moment, do not deal with input that contains NaN values

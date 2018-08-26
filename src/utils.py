@@ -95,6 +95,10 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
     test_loss = 0
     test_accuracy = 0
 
+    # Shuffle data before, otherwise the results on some tasks were confusing.
+    # Validation had similiar loss to the training data while test data had a very high one.
+    np.random.shuffle(x)
+
     kf = KFold(n_splits=nr_folds)
 
     for train_indices, test_indices in kf.split(x):
