@@ -41,6 +41,7 @@ def load_data(working_dir):
 def plot_budgets_test_loss(working_dir):
     
     accuracies, val_losses = load_data(working_dir)
+    fig = plt.figure(1)  # an empty figure with no axes
     # Create an axes instance
     ax = plt.subplot(111)
     data_plot = []
@@ -56,19 +57,19 @@ def plot_budgets_test_loss(working_dir):
     # plt.show()
     # Save the figure
     plt.savefig(os.path.join(working_dir, 'budget_test_loss.png'), bbox_inches='tight')
-    plt.gcf().clear()
+    plt.close(fig)
 
 def plot_val_loss(working_dir):
 
     with open(os.path.join(working_dir, "results.pkl"), "rb") as fp:
         result = pickle.load(fp)
-
+    fig = plt.figure(2)  # an empty figure with no axes
     run_id = result.get_incumbent_id()
     runs = result.get_runs_by_id(run_id)
     best_run = runs[-1]
     # budget = best_run.budget
     validation_curve = best_run.info['val_loss']
-    ax = plt.subplot(222)
+    ax = plt.subplot(111)
     plt.plot(validation_curve)
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Validation Loss")
@@ -76,4 +77,4 @@ def plot_val_loss(working_dir):
     # plt.show()
     # Save the figure
     plt.savefig(os.path.join(working_dir, 'validation_curve.png'), bbox_inches='tight')
-
+    plt.close(fig)

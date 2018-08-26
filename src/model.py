@@ -19,6 +19,7 @@ class Loader(object):
 
         global _x, _y, _categorical, _mean, _std, _task_id
         logger = logging.getLogger(__name__)
+        _task_id = task_id
         dataset = openml.tasks.get_task(_task_id).get_dataset()
 
         x, y, categorical = dataset.get_data(target=dataset.default_target_attribute,
@@ -44,7 +45,6 @@ class Loader(object):
 
         _x = x
         _y = y
-        _task_id = task_id
         _categorical = categorical
         _mean = mean
         _std = std

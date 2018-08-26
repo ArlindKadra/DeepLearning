@@ -35,7 +35,7 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=15):
     cs.add_hyperparameter(res_block_type)
     cs.add_hyperparameter(ConfigSpace.UniformFloatHyperparameter("learning_rate",
                                                                  lower=10e-4,
-                                                                 upper=10e-1,
+                                                                 upper=10e-2,
                                                                  default_value=10e-2,
                                                                  log=True))
     optimizer = ConfigSpace.CategoricalHyperparameter('optimizer', optimizers)
