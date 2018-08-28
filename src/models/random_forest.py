@@ -1,7 +1,9 @@
 import logging
+import numpy as np
 import autosklearn.classification
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
+
 
 
 def train(x, y, categorical_indicator):
@@ -14,7 +16,7 @@ def train(x, y, categorical_indicator):
     random_forest = RandomForest().build()
     random_forest.fit(x_train, y_train, x_test, y_test, feat_type=feat_type)
     y_prediction = random_forest.predict(x_test)
-    logger.info('Random Forest accuracy score: %.3f %%', (accuracy_score(y_test, y_prediction)).item())
+    logger.info('Random Forest accuracy score: %.3f %%', (accuracy_score(y_test, np.argmax(y_prediction, axis=1))).item())
 
 class RandomForest(object):
     # Class which resembles an auto-sklearn random forest classifier
