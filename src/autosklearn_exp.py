@@ -1,4 +1,4 @@
-from model import Loader
+import model
 from models import random_forest
 from models import svm
 import utils
@@ -33,8 +33,8 @@ def main():
     utils.setup_logging("AutoSklearn" + args.run_id, logging.DEBUG if verbose else logging.INFO)
     logger.info('AutoSkLearn Experiment started')
 
-    loader = Loader(task_id=args.task_id, torch=False)
-    x, y, categorical = loader.get_dataset()
+    model.Loader(task_id=args.task_id, torch=False)
+    x, y, categorical = model.get_dataset()
 
     random_forest.train(x, y, categorical)
     # svm.train(x, y, categorical)
