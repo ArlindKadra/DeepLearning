@@ -73,7 +73,8 @@ def plot_val_loss(working_dir):
     plt.plot(validation_curve)
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Validation Loss")
-    ax.set_title("Best Hyperparameter Configuration")
+    test_accuracy = best_run.info['test_accuracy']
+    ax.set_title("Best Hyperparameter Configuration %d" % test_accuracy)
     # plt.show()
     # Save the figure
     plt.savefig(os.path.join(working_dir, 'validation_curve.png'), bbox_inches='tight')

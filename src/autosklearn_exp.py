@@ -1,6 +1,7 @@
 import model
 from models import random_forest
 from models import svm
+from models import gradient_boosting
 import utils
 
 import logging
@@ -19,8 +20,8 @@ def main():
     parser.add_argument(
         '--array_id',
         help='SGE array id.',
-        default=1
-        type=int
+        default=1,
+        type=int,
     )
     parser.add_argument(
         '--task_id',
@@ -30,17 +31,14 @@ def main():
     )
 
     args = parser.parse_args()
-    algorithms = {1:random_forest, 2:svm}
+    algorithms = {1: random_forest, 2: svm, 3: gradient_boosting}
     network = algorithms[args.array_id]
-    # initialize logging
-    logger = logging.getLogger(__name__)
     # TODO put verbose into configuration file
     verbose = True
-    utils.setup_logging("AutoSklearn" + args.run_id, logging.DEBUG if verbose else logging.INFO)
-    logger.info('AutoSkLearn Experiment started')
+    utils.setup_logging("AutoSklearn" + args.run_id + "_" + args.array_id,
+                        logging.DEBUG if verbose else logging.INFO)
     model.Loader(task_id=args.task_id, torch=False)
     x, y, categorical = model.get_dataset()
-
     network.train(x, y, categorical, args.task_id)
 
 
