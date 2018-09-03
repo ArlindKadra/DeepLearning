@@ -34,7 +34,7 @@ class Svm(object):
             include_estimators=["libsvm_svc"],
             output_folder="autosklearn_exp/%s/%d/output" % (self.get_name(), task_id),
             delete_output_folder_after_terminate=False,
-            temp_folder="autosklearn_exp/%s/%d/temp" % (self.get_name(), task_id),
+            tmp_folder="autosklearn_exp/%s/%d/tmp" % (self.get_name(), task_id),
             delete_tmp_folder_after_terminate=False,
             initial_configurations_via_metalearning=0
         )

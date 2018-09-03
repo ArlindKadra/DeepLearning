@@ -35,7 +35,7 @@ def main():
     network = algorithms[args.array_id]
     # TODO put verbose into configuration file
     verbose = True
-    utils.setup_logging("AutoSklearn" + args.run_id + "_" + args.array_id,
+    utils.setup_logging("AutoSklearn" + str(args.run_id) + "_" + str(args.array_id),
                         logging.DEBUG if verbose else logging.INFO)
     model.Loader(task_id=args.task_id, torch=False)
     x, y, categorical = model.get_dataset()
