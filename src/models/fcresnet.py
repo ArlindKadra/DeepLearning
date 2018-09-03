@@ -174,8 +174,8 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
                 x = lam * x_train[indices] + \
                     (1 - lam) * x_train[shuffled_indices]
 
-                targets_a = lam * y_train[indices]
-                targets_b = (1 - lam) * y_train[shuffled_indices]
+                targets_a = y_train[indices]
+                targets_b = y_train[shuffled_indices]
                 targets_a = torch.from_numpy(targets_a).long()
                 targets_b = torch.from_numpy(targets_b).long()
                 targets_a = targets_a.to(device)
