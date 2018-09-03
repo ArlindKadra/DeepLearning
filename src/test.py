@@ -9,7 +9,21 @@ x, y, categorical = dataset.get_data(
     return_categorical_indicator=True
 )
 
-print(y)
+labels = np.zeros((y.shape[0], max(y) + 1))
+labels[np.arange(y.shape[0]), y] = 1
 
-b = [[1, 2, 3], [4, 6, 5], [7,8, 9], [10, 11, 12]]
-print(np.argmax(b, axis=1))
+b = np.ones((3, 2))
+
+b = b * 7
+c = np.ones((3, 2))
+b = b + c
+
+a = np.arange(1, 9)
+a = a.reshape(4, 2)
+
+b = [0, 2, 3]
+
+# print(a[b])
+d = np.arange(1, 9)
+print(np.random.permutation(d))
+print(d)

@@ -2,10 +2,13 @@ import utils
 from optim.adamw import AdamW
 from optim.sgdw import SGDW
 from optim.lr_scheduler import ScheduledOptimizer, CosineScheduler
+
 import logging
 import ConfigSpace
 import torch
 import torch.nn as nn
+import numpy as np
+
 
 # TODO Max number of layers and res blocks should be read from the config file
 def get_config_space(max_num_layers=2, max_num_res_blocks=15):
@@ -13,6 +16,7 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=15):
     optimizers = ['SGD', 'AdamW']
     dropout_values = ['Yes', 'No']
     block_types = ['BasicRes', 'PreRes']
+    mixout_values = ['True', 'False']
 
     cs = ConfigSpace.ConfigurationSpace()
 
@@ -32,12 +36,24 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=15):
                                                                    default_value=16,
                                                                    log=True))
     res_block_type = ConfigSpace.CategoricalHyperparameter('block_type', block_types)
+
+    mixout = ConfigSpace.CategoricalHyperparameter('mixout', mixout_values)
+    mixout_alpha = ConfigSpace.UniformFloatHyperparameter('mixout_alpha',
+                                                          lower = 0.1,
+                                                          upper = 1,
+                                                          default_value = 0.2
+                                                          )
+    cs.add_hyperparameter(mixout)
+    cs.add_hyperparameter(mixout_alpha)
+    cs.add_condition(ConfigSpace.EqualsCondition(mixout_alpha, mixout, 'True'))
+
     cs.add_hyperparameter(res_block_type)
     cs.add_hyperparameter(ConfigSpace.UniformFloatHyperparameter("learning_rate",
                                                                  lower=10e-4,
                                                                  upper=10e-2,
                                                                  default_value=10e-2,
                                                                  log=True))
+
     optimizer = ConfigSpace.CategoricalHyperparameter('optimizer', optimizers)
     cs.add_hyperparameter(optimizer)
 
@@ -100,7 +116,9 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
     logger = logging.getLogger(__name__)
     nr_classes = max(y_train) + 1
     batch_size = config["batch_size"]
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     if config['block_type'] == 'BasicRes':
         network = FcResNet(BasicBlock, config, x_train.shape[1], nr_classes).to(device)
     elif config['block_type'] == 'PreRes':
@@ -130,11 +148,29 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
     logger.info('FcResNet started training')
     # Save the validation accuracy for each epoch
     network_val_loss = []
+
+    # change class values to one hot encodings, (for mixup)
+
+    # training labels to one hot encoding
+    y_train_onehot = np.zeros((y_train.shape[0], max(y_train) + 1))
+    y_train_onehot[np.arange(y_train.shape[0]), y_train] = 1
+
+    # validation labels to one hot encoding
+    y_val_onehot = np.zeros((y_val.shape[0], max(y_val) + 1))
+    y_val_onehot[np.arange(y_val.shape[0]), y_val] = 1
+
+    # test labels to one hot encoding
+    y_test_onehot = np.zeros((y_test.shape[0], max(y_test) + 1))
+    y_test_onehot[np.arange(y_test.shape[0]), y_test] = 1
+
+
     x_val = torch.from_numpy(x_val)
     x_val.requires_grad_(False)
-    y_val = torch.from_numpy(y_val)
+    y_val = torch.from_numpy(y_val_onehot)
     y_val.requires_grad_(False)
     x_val, y_val = x_val.to(device), y_val.to(device)
+
+
     # loop over the dataset according to the number of epochs
     for epoch in range(0, num_epochs):
 
@@ -143,8 +179,24 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
         # train the network
         for i in range(0, (x_train.shape[0] - batch_size), batch_size):
             # get the inputs
-            x = x_train[i:i + batch_size]
-            y = y_train[i:i + batch_size]
+            # Check if mixup is active
+            indices = np.arange(i, i + batch_size)
+
+            if config['mixout']:
+
+                mixup_value = np.random.beta(config['mixout_alpha'], config['mixout_alpha'])
+                shuffled_indices = np.random.permutation(indices)
+
+                x = mixup_value * x_train[indices] + \
+                    (1 - mixup_value) * x_train[shuffled_indices]
+
+                y = mixup_value * y_train[indices] + \
+                    (1 - mixup_value) * y_train[shuffled_indices]
+
+            else:
+                x = x_train[indices]
+                y = y_train_onehot[indices]
+
             x = torch.from_numpy(x)
             y = torch.from_numpy(y).long()
             x, y = x.to(device), y.to(device)
@@ -183,11 +235,12 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
         correct = 0
         total = 0
         x_test = torch.from_numpy(x_test)
-        y_test = torch.from_numpy(y_test).long()
+        y_test = torch.from_numpy(y_test_onehot).long()
         x_test, y_test = x_test.to(device), y_test.to(device)
         outputs = network(x_test)
         test_loss = loss_function(outputs, y_test)
         _, predicted = torch.max(outputs.data, 1)
+        _, target_index = torch.max(y_test)
         total += y_test.size(0)
         correct += ((predicted == y_test).sum()).item()
         accuracy = 100 * correct / total
