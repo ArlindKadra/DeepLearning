@@ -119,3 +119,7 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
     result = {'test_loss': test_loss, 'test_accuracy': test_accuracy,
               'val_loss': list(val_loss_epochs)}
     return result
+
+
+def mixup_criterion(y_a, y_b, lam):
+    return lambda criterion, pred: lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
