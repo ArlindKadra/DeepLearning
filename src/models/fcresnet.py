@@ -14,9 +14,7 @@ import numpy as np
 def get_config_space(max_num_layers=2, max_num_res_blocks=3):
 
     optimizers = ['SGD', 'AdamW']
-    dropout_values = ['Yes', 'No']
     block_types = ['BasicRes', 'PreRes']
-    mixout_values = ['Yes', 'No']
 
     cs = ConfigSpace.ConfigurationSpace()
 
@@ -34,24 +32,26 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=3):
                                                                    lower=8,
                                                                    upper=256,
                                                                    default_value=16,
-                                                                   log=True))
+                                                                   log=True
+                                                                   )
+                          )
     res_block_type = ConfigSpace.CategoricalHyperparameter('block_type', block_types)
+    cs.add_hyperparameter(res_block_type)
 
     mixout_alpha = ConfigSpace.UniformFloatHyperparameter('mixout_alpha',
-                                                          lower=0.1,
+                                                          lower=0,
                                                           upper=1,
                                                           default_value = 0.2
                                                           )
-    cs.add_hyperparameter(mixout)
     cs.add_hyperparameter(mixout_alpha)
-    cs.add_condition(ConfigSpace.EqualsCondition(mixout_alpha, mixout, 'Yes'))
 
-    cs.add_hyperparameter(res_block_type)
     cs.add_hyperparameter(ConfigSpace.UniformFloatHyperparameter("learning_rate",
                                                                  lower=10e-4,
                                                                  upper=10e-2,
                                                                  default_value=10e-2,
-                                                                 log=True))
+                                                                 log=True
+                                                                 )
+                          )
 
     optimizer = ConfigSpace.CategoricalHyperparameter('optimizer', optimizers)
     cs.add_hyperparameter(optimizer)
@@ -59,20 +59,23 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=3):
     momentum = ConfigSpace.UniformFloatHyperparameter("momentum",
                                                       lower=0.0,
                                                       upper=0.9,
-                                                      default_value=0.9)
+                                                      default_value=0.9
+                                                      )
     cs.add_hyperparameter(momentum)
     cs.add_condition(ConfigSpace.EqualsCondition(momentum, optimizer, 'SGD'))
 
     l2_reg = ConfigSpace.UniformFloatHyperparameter("l2_reg",
                                                     lower=10e-6,
                                                     upper=10e-2,
-                                                    default_value=10e-4)
+                                                    default_value=10e-4
+                                                    )
     cs.add_hyperparameter(l2_reg)
 
     weight_decay = ConfigSpace.UniformFloatHyperparameter("weight_decay",
                                                           lower=10e-5,
                                                           upper=10e-3,
-                                                          default_value=10e-4)
+                                                          default_value=10e-4
+                                                          )
     cs.add_hyperparameter(weight_decay)
 
     # it is the upper bound of the nr of layers, since the configuration will actually be sampled.
@@ -82,19 +85,33 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=3):
                                                            lower=16,
                                                            upper=256,
                                                            default_value=64,
-                                                           log=True)
+                                                           log=True
+                                                           )
         cs.add_hyperparameter(n_units)
 
         dropout = ConfigSpace.UniformFloatHyperparameter("dropout_%d" % i,
                                                          lower=0,
                                                          upper=0.9,
-                                                         default_value=0.5)
+                                                         default_value=0.5
+                                                         )
         cs.add_hyperparameter(dropout)
 
-        if i >= 1:
-            cond = ConfigSpace.GreaterThanCondition(n_units, num_layers, i)
-            equals_cond = ConfigSpace.EqualsCondition(n_units, num_layers, i)
-            cs.add_condition(ConfigSpace.OrConjunction(cond, equals_cond))
+        cond = ConfigSpace.GreaterThanCondition(n_units, num_layers, i)
+        equals_cond = ConfigSpace.EqualsCondition(n_units, num_layers, i)
+        cs.add_condition(ConfigSpace.OrConjunction(cond, equals_cond))
+
+    # add drop out for the number of residual blocks
+    for i in range(1, max_num_res_blocks + 1):
+
+        dropout = ConfigSpace.UniformFloatHyperparameter("dropout_%d" % i,
+                                                        lower=0,
+                                                        upper=0.9,
+                                                        default_value=0.5
+                                                         )
+        cs.add_hyperparameter(dropout)
+        cond = ConfigSpace.GreaterThanCondition(dropout, num_res_blocks, i)
+        equals_cond = ConfigSpace.EqualsCondition(dropout, num_res_blocks, i)
+        cs.add_condition(ConfigSpace.OrConjunction(cond, equals_cond))
 
     return cs
 
@@ -123,6 +140,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
     total_params = sum(p.numel() for p in network.parameters() if p.requires_grad)
     logger.info("Number of network parameters %d", total_params)
     criterion = nn.CrossEntropyLoss()
+
     if config['optimizer'] == 'SGD':
         optimizer = SGDW(network.parameters(), lr=config["learning_rate"],
                          momentum=config["momentum"], weight_decay=config['weight_decay'])
@@ -159,27 +177,30 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
             # Check if mixup is active
             indices = np.arange(i, i + batch_size)
 
-            if config['mixout'] == 'Yes':
-
-                lam = np.random.beta(config['mixout_alpha'], config['mixout_alpha'])
-                shuffled_indices = np.random.permutation(indices)
-
-                x = lam * x_train[indices] + \
-                    (1 - lam) * x_train[shuffled_indices]
-
-                targets_a = y_train[indices]
-                targets_b = y_train[shuffled_indices]
-                targets_a = torch.from_numpy(targets_a).long()
-                targets_b = torch.from_numpy(targets_b).long()
-                targets_a = targets_a.to(device)
-                targets_b = targets_b.to(device)
-                loss_function = utils.mixup_criterion(targets_a, targets_b, lam)
-
+            # if config['mixout'] == 'Yes':
+            mixout_alpha = config['mixout_alpha']
+            if mixout_alpha != 0:
+                lam = np.random.beta(mixout_alpha, mixout_alpha)
             else:
-                x = x_train[indices]
-                y = y_train[indices]
-                y = torch.from_numpy(y).long()
-                y = y.to(device)
+                lam = 1
+            shuffled_indices = np.random.permutation(indices)
+
+            x = lam * x_train[indices] + \
+                (1 - lam) * x_train[shuffled_indices]
+
+            targets_a = y_train[indices]
+            targets_b = y_train[shuffled_indices]
+            targets_a = torch.from_numpy(targets_a).long()
+            targets_b = torch.from_numpy(targets_b).long()
+            targets_a = targets_a.to(device)
+            targets_b = targets_b.to(device)
+            loss_function = utils.mixup_criterion(targets_a, targets_b, lam)
+
+            # else:
+            # x = x_train[indices]
+            # y = y_train[indices]
+            # y = torch.from_numpy(y).long()
+            # y = y.to(device)
 
             x = torch.from_numpy(x).float()
             x = x.to(device)
@@ -193,10 +214,10 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
                 logger.error('Output contains NaN values')
                 raise ValueError("NaN value in output")
 
-            if config['mixout'] == 'Yes':
-                loss = loss_function(criterion, output)
-            else:
-                loss = criterion(output, y)
+            # if config['mixout'] == 'Yes':
+            loss = loss_function(criterion, output)
+            # else:
+            # loss = criterion(output, y)
 
             loss.backward()
             scheduled_optimizer.step(anneal_epoch / anneal_max_epoch)
@@ -266,13 +287,13 @@ class FcResNet(nn.Module):
         layer = list()
         layer.append(block(input_features, self.config))
         for i in range(1, num_res_blocks + 1):
-            layer.append(block(self.config["num_units_%i" % self.config["num_layers"]], self.config, block_nr))
+            layer.append(block(self.config["num_units_%i" % self.config["num_layers"]], self.config, i)
         return nn.Sequential(*layer)
 
 
 class BasicBlock(nn.Module):
 
-    def __init__(self, in_features, config):
+    def __init__(self, in_features, config, block_nr):
 
         super(BasicBlock, self).__init__()
         self.number_layers = config["num_layers"]
@@ -281,14 +302,15 @@ class BasicBlock(nn.Module):
         setattr(self, "fc_1", nn.Linear(in_features, config["num_units_1"]))
         setattr(self, "b_norm_1", nn.BatchNorm1d(config["num_units_1"]))
 
-        if 'dropout_1' in config:
-            setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_1']))
+        # adding dropout only in the case of a 2 layer res block and only once
+        # TODO generalize
+        setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d' % block_nr]))
 
         for i in range(2, self.number_layers + 1):
             setattr(self, 'fc_%d' % i, nn.Linear(config["num_units_%d" % (i-1)], config["num_units_%d" % i]))
             setattr(self, 'b_norm_%d' % i, nn.BatchNorm1d(config["num_units_%d" % i]))
-            if 'dropout_%d' % i in config:
-                setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
+            # if 'dropout_%d' % i in config:
+                # setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
 
         if in_features != config["num_units_%d" % self.number_layers]:
             self.projection = nn.Linear(in_features, config["num_units_%d" % self.number_layers])
@@ -316,7 +338,7 @@ class BasicBlock(nn.Module):
 
 class PreActBlock(nn.Module):
 
-    def __init__(self, in_features, config):
+    def __init__(self, in_features, config, block_nr):
 
         super(PreActBlock, self).__init__()
 
@@ -326,14 +348,18 @@ class PreActBlock(nn.Module):
         setattr(self, "b_norm_1", nn.BatchNorm1d(in_features))
         setattr(self, "fc_1", nn.Linear(in_features, config["num_units_1"]))
 
-        if 'dropout_1' in config:
-            setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_1']))
+        # if 'dropout_1' in config:
+            # setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_1']))
+
+        # adding dropout only in the case of a 2 layer res block and only once
+        # TODO generalize
+        setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d' % block_nr]))
 
         for i in range(2, self.number_layers + 1):
             setattr(self, "b_norm_%d" % i, nn.BatchNorm1d(config["num_units_%d" % (i - 1)]))
             setattr(self, "fc_%d" % i, nn.Linear(config["num_units_%d" % (i - 1)], config["num_units_%d" % i]))
-            if 'dropout_%d' % i in config:
-                setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
+            # if 'dropout_%d' % i in config:
+                # setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
 
         if in_features != config["num_units_%d" % self.number_layers]:
             self.projection = nn.Linear(in_features, config["num_units_%d" % self.number_layers])
@@ -347,7 +373,7 @@ class PreActBlock(nn.Module):
             out = self.relu(out)
             out = getattr(self, 'fc_%d' % i)(out)
             if getattr(self, 'dropout_%d' % i, None) is not None:
-                out = out = getattr(self, 'dropout_%d' % i)(out)
+                out = getattr(self, 'dropout_%d' % i)(out)
 
         if self.projection is not None:
             residual = self.projection(residual)
