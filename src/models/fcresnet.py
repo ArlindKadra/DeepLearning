@@ -11,7 +11,7 @@ import numpy as np
 
 
 # TODO Max number of layers and res blocks should be read from the config file
-def get_config_space(max_num_layers=2, max_num_res_blocks=15):
+def get_config_space(max_num_layers=2, max_num_res_blocks=3):
 
     optimizers = ['SGD', 'AdamW']
     dropout_values = ['Yes', 'No']
@@ -26,9 +26,9 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=15):
                                                           default_value=2)
     cs.add_hyperparameter(num_layers)
     num_res_blocks = ConfigSpace.UniformIntegerHyperparameter("num_res_blocks",
-                                                              lower=5,
+                                                              lower=1,
                                                               upper=max_num_res_blocks,
-                                                              default_value=5)
+                                                              default_value=3)
     cs.add_hyperparameter(num_res_blocks)
     cs.add_hyperparameter(ConfigSpace.UniformIntegerHyperparameter("batch_size",
                                                                    lower=8,
@@ -37,10 +37,9 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=15):
                                                                    log=True))
     res_block_type = ConfigSpace.CategoricalHyperparameter('block_type', block_types)
 
-    mixout = ConfigSpace.CategoricalHyperparameter('mixout', mixout_values)
     mixout_alpha = ConfigSpace.UniformFloatHyperparameter('mixout_alpha',
-                                                          lower = 0.1,
-                                                          upper = 1,
+                                                          lower=0.1,
+                                                          upper=1,
                                                           default_value = 0.2
                                                           )
     cs.add_hyperparameter(mixout)
@@ -75,33 +74,27 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=15):
                                                           upper=10e-3,
                                                           default_value=10e-4)
     cs.add_hyperparameter(weight_decay)
-    dropout_flag = ConfigSpace.CategoricalHyperparameter('dropout', dropout_values)
-    cs.add_hyperparameter(dropout_flag)
 
     # it is the upper bound of the nr of layers, since the configuration will actually be sampled.
     for i in range(1, max_num_layers + 1):
 
         n_units = ConfigSpace.UniformIntegerHyperparameter("num_units_%d" % i,
-                                                           lower=128,
-                                                           upper=1024,
-                                                           default_value=128,
+                                                           lower=16,
+                                                           upper=256,
+                                                           default_value=64,
                                                            log=True)
         cs.add_hyperparameter(n_units)
 
         dropout = ConfigSpace.UniformFloatHyperparameter("dropout_%d" % i,
-                                                         lower=0.0,
+                                                         lower=0,
                                                          upper=0.9,
                                                          default_value=0.5)
         cs.add_hyperparameter(dropout)
-        dropout_cond = ConfigSpace.EqualsCondition(dropout, dropout_flag, 'Yes')
 
         if i >= 1:
             cond = ConfigSpace.GreaterThanCondition(n_units, num_layers, i)
             equals_cond = ConfigSpace.EqualsCondition(n_units, num_layers, i)
             cs.add_condition(ConfigSpace.OrConjunction(cond, equals_cond))
-            # every 2 fully connected layers / 1 dropout layer in between
-            cond = ConfigSpace.GreaterThanCondition(dropout, num_layers, i)
-            cs.add_condition(ConfigSpace.AndConjunction(cond, dropout_cond))
 
     return cs
 
@@ -272,8 +265,8 @@ class FcResNet(nn.Module):
 
         layer = list()
         layer.append(block(input_features, self.config))
-        for i in range(1, num_res_blocks):
-            layer.append(block(self.config["num_units_%i" % self.config["num_layers"]], self.config))
+        for i in range(1, num_res_blocks + 1):
+            layer.append(block(self.config["num_units_%i" % self.config["num_layers"]], self.config, block_nr))
         return nn.Sequential(*layer)
 
 
