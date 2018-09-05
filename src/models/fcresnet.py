@@ -15,6 +15,7 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=3):
 
     optimizers = ['SGD', 'AdamW']
     block_types = ['BasicRes', 'PreRes']
+    decay_scheduler = ['cosine_annealing', 'cosine_decay']
 
     cs = ConfigSpace.ConfigurationSpace()
 
@@ -37,6 +38,8 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=3):
                           )
     res_block_type = ConfigSpace.CategoricalHyperparameter('block_type', block_types)
     cs.add_hyperparameter(res_block_type)
+    decay_type = ConfigSpace.CategoricalHyperparameter('decay_type', decay_scheduler)
+    cs.add_hyperparameter(decay_type)
 
     mixout_alpha = ConfigSpace.UniformFloatHyperparameter('mixout_alpha',
                                                           lower=0,
@@ -151,9 +154,15 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
         logger.error("Unexpected optimizer value")
         raise ValueError("Unexpected optimizer value")
 
-    anneal_max_epoch = int(1 / 10 * num_epochs)
-    anneal_multiply = 2
-    anneal_epoch = 0
+    if config['decay_type'] == 'cosine_annealing':
+        restart = True
+
+    if restart:
+
+        anneal_max_epoch = int(1 / 7 * num_epochs)
+        anneal_multiply = 2
+        anneal_epoch = 0
+
     scheduled_optimizer = ScheduledOptimizer(optimizer, CosineScheduler)
     logger.info('FcResNet started training')
     # Save the validation accuracy for each epoch
@@ -220,7 +229,6 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
             # loss = criterion(output, y)
 
             loss.backward()
-            scheduled_optimizer.step(anneal_epoch / anneal_max_epoch)
             running_loss += loss.item()
             nr_batches += 1
 
@@ -230,14 +238,23 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
         logger.info('Epoch %d, Train loss: %.3f, Validation loss: %.3f', epoch + 1, running_loss / nr_batches, val_loss)
         logger.info('Learning rate: %.3f', scheduled_optimizer.get_learning_rate())
         logger.info('Weight decay: %.3f', scheduled_optimizer.get_weight_decay())
-        # set the anneal schedule progress
-        if anneal_epoch < anneal_max_epoch:
-            anneal_epoch += 1
-        elif anneal_epoch == anneal_max_epoch:
-            anneal_epoch = 0
-            anneal_max_epoch = anneal_max_epoch * anneal_multiply
+
+        if restart:
+
+            scheduled_optimizer.step(anneal_epoch / anneal_max_epoch)
+            # set the anneal schedule progress
+            if anneal_epoch < anneal_max_epoch:
+                anneal_epoch += 1
+            elif anneal_epoch == anneal_max_epoch:
+                anneal_epoch = 0
+                anneal_max_epoch = anneal_max_epoch * anneal_multiply
+            else:
+                logger.info("Something went wrong, epochs > max epochs in restart")
+
         else:
-            logger.info("Something went wrong, epochs > max epochs in restart")
+
+            scheduled_optimizer.step(epoch / num_epochs - 1)
+
 
     with torch.no_grad():
         correct = 0
