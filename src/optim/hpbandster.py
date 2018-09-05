@@ -33,7 +33,7 @@ class Master(object):
 
             hb = BOHB(configspace=config_space,
                       run_id=run_id,
-                      eta=3, min_budget=27, max_budget=243,
+                      eta=3, min_budget=9, max_budget=243,
                       host=ns_host,
                       nameserver=ns_host,
                       result_logger=result_logger,

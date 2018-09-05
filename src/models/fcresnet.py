@@ -50,7 +50,7 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=3):
 
     cs.add_hyperparameter(ConfigSpace.UniformFloatHyperparameter("learning_rate",
                                                                  lower=10e-4,
-                                                                 upper=10e-2,
+                                                                 upper=10e-1,
                                                                  default_value=10e-2,
                                                                  log=True
                                                                  )
@@ -91,13 +91,6 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=3):
                                                            log=True
                                                            )
         cs.add_hyperparameter(n_units)
-
-        dropout = ConfigSpace.UniformFloatHyperparameter("dropout_%d" % i,
-                                                         lower=0,
-                                                         upper=0.9,
-                                                         default_value=0.5
-                                                         )
-        cs.add_hyperparameter(dropout)
 
         cond = ConfigSpace.GreaterThanCondition(n_units, num_layers, i)
         equals_cond = ConfigSpace.EqualsCondition(n_units, num_layers, i)
@@ -156,6 +149,8 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
     if config['decay_type'] == 'cosine_annealing':
         restart = True
+    else:
+        restart = False 
 
     if restart:
 
@@ -253,7 +248,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
         else:
 
-            scheduled_optimizer.step(epoch / num_epochs - 1)
+            scheduled_optimizer.step(epoch / (num_epochs - 1))
 
 
     with torch.no_grad():
@@ -302,9 +297,9 @@ class FcResNet(nn.Module):
     def _make_layer(self, block, num_res_blocks, input_features):
 
         layer = list()
-        layer.append(block(input_features, self.config))
-        for i in range(1, num_res_blocks + 1):
-            layer.append(block(self.config["num_units_%i" % self.config["num_layers"]], self.config, i)
+        layer.append(block(input_features, self.config, 1))
+        for i in range(2, num_res_blocks + 1):
+            layer.append(block(self.config["num_units_%i" % self.config["num_layers"]], self.config, i))
         return nn.Sequential(*layer)
 
 
