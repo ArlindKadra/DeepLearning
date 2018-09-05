@@ -100,6 +100,15 @@ class Slave(Worker):
                 labels['test']
             )
 
+            val_loss_epochs = output['validation']
+            test_loss = output['test'][0]
+            test_accuracy = output['test'][1]
+            output = {
+                'test_loss': test_loss,
+                'test_accuracy': test_accuracy,
+                'val_loss': list(val_loss_epochs)
+            }
+
         val_loss = output["val_loss"]
 
         return ({
