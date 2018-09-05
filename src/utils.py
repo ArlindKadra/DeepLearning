@@ -37,6 +37,28 @@ def feature_normalization(x, categorical=None):
     return x, mean, std
 
 
+def shuffle_data(x, y):
+
+    indices = np.arange(0, len(x))
+    shuffled_indices = np.random.permutation(indices)
+    return x[shuffled_indices], y[shuffled_indices]
+
+
+def separate_input_sets(x, y):
+
+    x_train, x_test, \
+    y_train, y_test = \
+        train_test_split(x, y, test_size=1 / 10)
+    x_train, x_val, \
+    y_train, y_val = \
+        train_test_split(x_train, y_train, test_size=1 / 9)
+
+    examples = {'train': x_train, 'val': x_val, 'test': x_test}
+    labels = {'train': y_train, 'val': y_val, 'test': y_test}
+
+    return examples, labels
+
+
 def setup_logging(log_file, level=logging.INFO):
     # TODO Read main logs dir from configuration
     main_logs_dir='logs'

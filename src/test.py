@@ -1,3 +1,4 @@
+"""
 import numpy as np
 import openml
 
@@ -27,3 +28,11 @@ b = [0, 2, 3]
 d = np.arange(1, 9)
 print(np.random.permutation(d))
 print(d)
+"""
+import utils
+import numpy as np
+a = np.arange(0, 3)
+d = np.arange(0, 3)
+b, c = utils.shuffle_data(a, d)
+print(b)
+print(c)

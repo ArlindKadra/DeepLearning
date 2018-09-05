@@ -3,7 +3,7 @@ import os
 import pickle
 
 import model
-from utils import cross_validation
+from utils import cross_validation, shuffle_data, separate_input_sets
 from models import fcresnet
 
 from hpbandster.optimizers import BOHB
@@ -69,7 +69,7 @@ class Master(object):
 
 class Slave(Worker):
 
-    def compute(self, config, budget, *args, **kwargs):
+    def compute(self, config, budget, k_fold_validation=False, *args, **kwargs):
         """All the functionality that the worker will compute.
 
         The worker will train the neural network and
@@ -78,10 +78,30 @@ class Slave(Worker):
         Args:
             config: A hyperparameter configuration drawn from the ConfigSpace.
             budget: budget on which the training of the network will be limited.
+            k_fold_validation: Flag to control cross validation.
         """
         x, y, _ = model.get_dataset()
-        output = cross_validation(int(budget), x, y, config)
+
+        if k_fold_validation:
+            output = cross_validation(int(budget), x, y, config)
+        else:
+            x, y = shuffle_data(x, y)
+
+            examples, labels = separate_input_sets(x, y)
+
+            output = fcresnet.train(
+                config,
+                int(budget),
+                examples['train'],
+                labels['train'],
+                examples['val'],
+                labels['val'],
+                examples['test'],
+                labels['test']
+            )
+
         val_loss = output["val_loss"]
+
         return ({
             'loss': (np.mean(val_loss)).item(),  # this is the a mandatory field to run hyperband
             'info': output  # can be used for any user-defined information - also mandatory
