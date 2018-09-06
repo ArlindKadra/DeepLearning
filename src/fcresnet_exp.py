@@ -1,8 +1,8 @@
 from utilities import plot, log
 from optim.hpbandster import Master
-import utils
 import model
 from model import Loader
+
 import os
 import argparse
 import logging
@@ -26,15 +26,11 @@ def main():
     logger = logging.getLogger(__name__)
     # TODO put verbose into configuration file
     verbose = False
-    utils.setup_logging(args.run_id + "_" + str(args.array_id), logging.DEBUG if verbose else logging.INFO)
+    log.setup_logging(args.run_id + "_" + str(args.array_id), logging.DEBUG if verbose else logging.INFO)
     logger.info('DeepResNet Experiment started')
     Loader(args.task_id)
     working_dir = os.path.join(args.working_dir, 'task_%i' % model.get_task_id(), 'fcresnet')
     Master(args.num_workers, args.num_iterations, args.run_id, args.array_id, working_dir, args.nic_name)
-    # config_space = fcresnet.get_config_space()
-    # config = config_space.sample_configuration(1)
-    # result = utils.cross_validation(x, y, fcresnet.FcResNet, config)
-    # logging.info('Cross Validation loss: %.3f, accuracy %.3f', result[0], result[1])
     plot.test_loss_over_budgets(working_dir)
     plot.best_conf_val_loss(working_dir)
     plot.plot_curves(working_dir)

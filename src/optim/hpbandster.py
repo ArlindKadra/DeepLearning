@@ -1,11 +1,11 @@
+import model
+from utilities.data import shuffle_data, separate_input_sets
+from utilities.regularization import cross_validation
+from models import fcresnet
+
 import numpy as np
 import os
 import pickle
-
-import model
-from utils import cross_validation, shuffle_data, separate_input_sets
-from models import fcresnet
-
 from hpbandster.optimizers import BOHB
 import hpbandster.core.nameserver as hpns
 import hpbandster.core.result as hpres

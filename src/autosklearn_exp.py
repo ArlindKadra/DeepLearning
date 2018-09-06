@@ -2,7 +2,7 @@ import model
 from models import random_forest
 from models import svm
 from models import gradient_boosting
-import utils
+from utilities.log import setup_logging
 
 import logging
 import argparse
@@ -35,8 +35,8 @@ def main():
     network = algorithms[args.array_id]
     # TODO put verbose into configuration file
     verbose = True
-    utils.setup_logging("AutoSklearn" + str(args.run_id) + "_" + str(args.array_id),
-                        logging.DEBUG if verbose else logging.INFO)
+    setup_logging("AutoSklearn" + str(args.run_id) + "_" + str(args.array_id),
+                  logging.DEBUG if verbose else logging.INFO)
     model.Loader(task_id=args.task_id, torch=False)
     x, y, categorical = model.get_dataset()
     network.train(x, y, categorical, args.task_id)

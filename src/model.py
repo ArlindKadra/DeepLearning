@@ -1,5 +1,4 @@
-import utils
-
+from utilities import data
 import logging
 import openml
 import numpy as np
@@ -29,18 +28,18 @@ class Loader(object):
 
         # TODO use mean or other ways to fill the missing values.
         # For the moment, do not deal with input that contains NaN values
-        if utils.contains_nan(x):
+        if data.contains_nan(x):
             # TODO switch to logger exception
             logger.error('Input contains NaN values')
             raise ValueError("Input contains NaN values")
 
         if True in categorical:
-            x, mean, std = utils.feature_normalization(x, categorical)
+            x, mean, std = data.feature_normalization(x, categorical)
             if torch:
                 enc = OneHotEncoder(categorical_features=categorical, dtype=np.float32)
                 x = enc.fit_transform(x).todense()
         else:
-            x, mean, std = utils.feature_normalization(x, None)
+            x, mean, std = data.feature_normalization(x, None)
 
         logger.info("Data normalized")
 
