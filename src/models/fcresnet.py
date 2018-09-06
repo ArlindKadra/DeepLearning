@@ -15,6 +15,8 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=3):
 
     optimizers = ['SGD', 'AdamW']
     block_types = ['BasicRes', 'PreRes']
+    decay_scheduler = ['cosine_annealing', 'cosine_decay']
+    mixout_reg = ['Yes', 'No']
 
     cs = ConfigSpace.ConfigurationSpace()
 
@@ -37,17 +39,22 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=3):
                           )
     res_block_type = ConfigSpace.CategoricalHyperparameter('block_type', block_types)
     cs.add_hyperparameter(res_block_type)
+    decay_type = ConfigSpace.CategoricalHyperparameter('decay_type', decay_scheduler)
+    cs.add_hyperparameter(decay_type)
 
+    mixout = ConfigSpace.CategoricalHyperparameter('mixout', mixout_reg)
     mixout_alpha = ConfigSpace.UniformFloatHyperparameter('mixout_alpha',
                                                           lower=0,
                                                           upper=1,
                                                           default_value = 0.2
                                                           )
+    cs.add_hyperparameter(mixout)
     cs.add_hyperparameter(mixout_alpha)
+    cs.add_condition(ConfigSpace.EqualsCondition(mixout_alpha, mixout, 'Yes'))
 
     cs.add_hyperparameter(ConfigSpace.UniformFloatHyperparameter("learning_rate",
                                                                  lower=10e-4,
-                                                                 upper=10e-2,
+                                                                 upper=10e-1,
                                                                  default_value=10e-2,
                                                                  log=True
                                                                  )
@@ -89,13 +96,6 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=3):
                                                            )
         cs.add_hyperparameter(n_units)
 
-        dropout = ConfigSpace.UniformFloatHyperparameter("dropout_%d" % i,
-                                                         lower=0,
-                                                         upper=0.9,
-                                                         default_value=0.5
-                                                         )
-        cs.add_hyperparameter(dropout)
-
         cond = ConfigSpace.GreaterThanCondition(n_units, num_layers, i)
         equals_cond = ConfigSpace.EqualsCondition(n_units, num_layers, i)
         cs.add_condition(ConfigSpace.OrConjunction(cond, equals_cond))
@@ -124,11 +124,16 @@ def validate_output(x):
 def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
     logger = logging.getLogger(__name__)
+
+    # number of dataset classes
     nr_classes = max(y_train) + 1
+
+    # Get the batch size
     batch_size = config["batch_size"]
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # Type of ResNet building block
     if config['block_type'] == 'BasicRes':
         network = FcResNet(BasicBlock, config, x_train.shape[1], nr_classes).to(device)
     elif config['block_type'] == 'PreRes':
@@ -137,10 +142,12 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
         logger.error("Unexpected residual block type")
         raise ValueError("Unexpected residual block type")
 
+    # Calculate the number of parameters for the network
     total_params = sum(p.numel() for p in network.parameters() if p.requires_grad)
     logger.info("Number of network parameters %d", total_params)
     criterion = nn.CrossEntropyLoss()
 
+    # Optimizer to be used
     if config['optimizer'] == 'SGD':
         optimizer = SGDW(network.parameters(), lr=config["learning_rate"],
                          momentum=config["momentum"], weight_decay=config['weight_decay'])
@@ -151,12 +158,22 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
         logger.error("Unexpected optimizer value")
         raise ValueError("Unexpected optimizer value")
 
-    anneal_max_epoch = int(1 / 10 * num_epochs)
-    anneal_multiply = 2
-    anneal_epoch = 0
+    # Decay type
+    if config['decay_type'] == 'cosine_annealing':
+        restart = True
+    else:
+        restart = False
+
+    if restart:
+
+        anneal_max_epoch = int(1 / 3 * num_epochs)
+        anneal_multiply = 2
+        anneal_epoch = 0
+
     scheduled_optimizer = ScheduledOptimizer(optimizer, CosineScheduler)
     logger.info('FcResNet started training')
-    # Save the validation accuracy for each epoch
+
+    # array to save the validation accuracy for each epoch
     network_val_loss = []
 
     x_val = torch.from_numpy(x_val).float()
@@ -174,16 +191,14 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
         # train the network
         for i in range(0, (x_train.shape[0] - batch_size), batch_size):
 
-            # Check if mixup is active
             indices = np.arange(i, i + batch_size)
-
-            # if config['mixout'] == 'Yes':
-            mixout_alpha = config['mixout_alpha']
-            if mixout_alpha != 0:
-                lam = np.random.beta(mixout_alpha, mixout_alpha)
-            else:
-                lam = 1
             shuffled_indices = np.random.permutation(indices)
+            lam = 1
+            # Check if mixup is active
+            if config['mixout'] == 'Yes':
+                mixout_alpha = config['mixout_alpha']
+                lam = np.random.beta(mixout_alpha, mixout_alpha)
+
 
             x = lam * x_train[indices] + \
                 (1 - lam) * x_train[shuffled_indices]
@@ -195,17 +210,11 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
             targets_a = targets_a.to(device)
             targets_b = targets_b.to(device)
             loss_function = utils.mixup_criterion(targets_a, targets_b, lam)
-
-            # else:
-            # x = x_train[indices]
-            # y = y_train[indices]
-            # y = torch.from_numpy(y).long()
-            # y = y.to(device)
-
             x = torch.from_numpy(x).float()
             x = x.to(device)
-            # forward + backward + optimize
-            scheduled_optimizer.zero_grad()  # zero the gradient buffers
+
+            # zero the gradient buffers
+            scheduled_optimizer.zero_grad()
             output = network(x)
 
             # stop training if we have NaN values in the output
@@ -214,13 +223,8 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
                 logger.error('Output contains NaN values')
                 raise ValueError("NaN value in output")
 
-            # if config['mixout'] == 'Yes':
             loss = loss_function(criterion, output)
-            # else:
-            # loss = criterion(output, y)
-
             loss.backward()
-            scheduled_optimizer.step(anneal_epoch / anneal_max_epoch)
             running_loss += loss.item()
             nr_batches += 1
 
@@ -230,14 +234,23 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
         logger.info('Epoch %d, Train loss: %.3f, Validation loss: %.3f', epoch + 1, running_loss / nr_batches, val_loss)
         logger.info('Learning rate: %.3f', scheduled_optimizer.get_learning_rate())
         logger.info('Weight decay: %.3f', scheduled_optimizer.get_weight_decay())
-        # set the anneal schedule progress
-        if anneal_epoch < anneal_max_epoch:
-            anneal_epoch += 1
-        elif anneal_epoch == anneal_max_epoch:
-            anneal_epoch = 0
-            anneal_max_epoch = anneal_max_epoch * anneal_multiply
+
+        if restart:
+
+            scheduled_optimizer.step(anneal_epoch / anneal_max_epoch)
+            # set the anneal schedule progress
+            if anneal_epoch < anneal_max_epoch:
+                anneal_epoch += 1
+            elif anneal_epoch == anneal_max_epoch:
+                anneal_epoch = 0
+                anneal_max_epoch = anneal_max_epoch * anneal_multiply
+            else:
+                logger.info("Something went wrong, epochs > max epochs in restart")
+
         else:
-            logger.info("Something went wrong, epochs > max epochs in restart")
+
+            scheduled_optimizer.step(epoch / (num_epochs - 1))
+
 
     with torch.no_grad():
         correct = 0
@@ -285,8 +298,8 @@ class FcResNet(nn.Module):
     def _make_layer(self, block, num_res_blocks, input_features):
 
         layer = list()
-        layer.append(block(input_features, self.config))
-        for i in range(1, num_res_blocks + 1):
+        layer.append(block(input_features, self.config, 1))
+        for i in range(2, num_res_blocks + 1):
             layer.append(block(self.config["num_units_%i" % self.config["num_layers"]], self.config, i))
         return nn.Sequential(*layer)
 

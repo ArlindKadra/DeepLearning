@@ -25,6 +25,28 @@ class CosineScheduler:
             param_group['weight_decay'] = param_group['initial_weight_decay'] * decay
 
 
+class CosineScheduler:
+    def __init__(self, optimizer):
+        if not isinstance(optimizer, Optimizer):
+            raise TypeError('{} is not an Optimizer'.format(
+                type(optimizer).__name__))
+
+        self.optimizer = optimizer
+
+        for group in optimizer.param_groups:
+            group.setdefault('initial_lr', group['lr'])
+            group.setdefault('initial_weight_decay', group['weight_decay'])
+
+    # Starting from epoch 0
+    def step(self, progress):
+        assert 0.0 <= progress <= 1.0
+        decay = 0.5 * (1.0 + np.cos(np.pi * progress))
+
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = param_group['initial_lr'] * decay
+            param_group['weight_decay'] = param_group['initial_weight_decay'] * decay
+
+
 # Set scheduler to CosineScheduler if you want to use cosine annealing
 class ScheduledOptimizer(object):
     def __init__(self, optimizer, scheduler=None):
