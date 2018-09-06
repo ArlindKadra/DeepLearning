@@ -1,6 +1,7 @@
 from torch.optim.optimizer import Optimizer
 import numpy as np
 
+
 # https://github.com/PatrykChrabaszcz/DeepLearning_EEG/blob/85ffdde2ac77d14b42fc40919fc4ed478f75aa17/src/deep_learning/pytorch/optimizer.py
 class CosineScheduler:
     def __init__(self, optimizer):

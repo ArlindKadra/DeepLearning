@@ -39,7 +39,7 @@ def feature_normalization(x, categorical=None):
 
 def setup_logging(log_file, level=logging.INFO):
     # TODO Read main logs dir from configuration
-    main_logs_dir='logs'
+    main_logs_dir = 'logs'
     root = logging.getLogger()
     root.setLevel(level)
     format = '%(asctime)s, %(process)-6s %(levelname)-5s %(module)s: %(message)s'

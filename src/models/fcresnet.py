@@ -287,7 +287,7 @@ class FcResNet(nn.Module):
         layer = list()
         layer.append(block(input_features, self.config))
         for i in range(1, num_res_blocks + 1):
-            layer.append(block(self.config["num_units_%i" % self.config["num_layers"]], self.config, i)
+            layer.append(block(self.config["num_units_%i" % self.config["num_layers"]], self.config, i))
         return nn.Sequential(*layer)
 
 
