@@ -1,4 +1,4 @@
-from utilities.regularization import mixup_criterion
+import utilities.regularization
 from utilities import data
 from optim.adamw import AdamW
 from optim.sgdw import SGDW
@@ -210,7 +210,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
             targets_b = torch.from_numpy(targets_b).long()
             targets_a = targets_a.to(device)
             targets_b = targets_b.to(device)
-            loss_function = mixup_criterion(targets_a, targets_b, lam)
+            loss_function = utilities.regularization.mixup_criterion(targets_a, targets_b, lam)
             x = torch.from_numpy(x).float()
             x = x.to(device)
 

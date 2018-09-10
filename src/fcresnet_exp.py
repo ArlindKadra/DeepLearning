@@ -3,6 +3,7 @@ from optim.hpbandster import Master
 import model
 from model import Loader
 
+import time
 import os
 import argparse
 import logging
@@ -30,11 +31,17 @@ def main():
     logger.info('DeepResNet Experiment started')
     Loader(args.task_id)
     working_dir = os.path.join(args.working_dir, 'task_%i' % model.get_task_id(), 'fcresnet')
+    start_time = time.time()
     Master(args.num_workers, args.num_iterations, args.run_id, args.array_id, working_dir, args.nic_name)
-    plot.test_loss_over_budgets(working_dir)
-    plot.best_conf_val_loss(working_dir)
-    plot.plot_curves(working_dir)
-    log.save_best_config(working_dir)
+    end_time = time.time()
+    duration = (end_time - start_time) / 60
+    
+    if args.array_id == 1:
+
+        plot.test_loss_over_budgets(working_dir)
+        plot.best_conf_val_loss(working_dir)
+        plot.plot_curves(working_dir)
+        log.general_info(working_dir, duration)
 
 
 if __name__ == '__main__':

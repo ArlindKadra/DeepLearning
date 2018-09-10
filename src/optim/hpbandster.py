@@ -1,6 +1,6 @@
 import model
-from utilities.data import shuffle_data, separate_input_sets
-from utilities.regularization import cross_validation
+import utilities.data
+import utilities.regularization
 from models import fcresnet
 
 import numpy as np
@@ -83,11 +83,11 @@ class Slave(Worker):
         x, y, _ = model.get_dataset()
 
         if k_fold_validation:
-            output = cross_validation(int(budget), x, y, config)
+            output = utilities.regularization.cross_validation(int(budget), x, y, config)
         else:
-            x, y = shuffle_data(x, y)
+            x, y = utilities.data.shuffle_data(x, y)
 
-            examples, labels = separate_input_sets(x, y)
+            examples, labels = utilities.data.separate_input_sets(x, y)
 
             output = fcresnet.train(
                 config,

@@ -1,3 +1,4 @@
+
 import openml
 import pickle
 import json
@@ -15,7 +16,7 @@ def prepare_openml100():
             file.write(" ")
 
 
-def save_best_config(working_dir):
+def general_info(working_dir, time):
 
     with open(os.path.join(working_dir, "results.pkl"), "rb") as fp:
         result = pickle.load(fp)
@@ -32,6 +33,9 @@ def save_best_config(working_dir):
         file.write("\n")
         file.write("Config: ")
         file.write(json.dumps(config_info[run_id]))
+        file.write("\n")
+        file.write("Lasted %f minutes" % time)
+        file.write("\n")
 
 
 def setup_logging(log_file, level=logging.INFO):
