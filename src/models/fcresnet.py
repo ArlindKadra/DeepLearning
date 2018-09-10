@@ -17,7 +17,7 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=3):
     optimizers = ['SGD', 'AdamW']
     block_types = ['BasicRes', 'PreRes']
     decay_scheduler = ['cosine_annealing', 'cosine_decay']
-    mixout_reg = ['Yes', 'No']
+    include_hyperparameter = ['Yes', 'No']
 
     cs = ConfigSpace.ConfigurationSpace()
 
@@ -43,7 +43,7 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=3):
     decay_type = ConfigSpace.CategoricalHyperparameter('decay_type', decay_scheduler)
     cs.add_hyperparameter(decay_type)
 
-    mixout = ConfigSpace.CategoricalHyperparameter('mixout', mixout_reg)
+    mixout = ConfigSpace.CategoricalHyperparameter('mixout', include_hyperparameter)
     mixout_alpha = ConfigSpace.UniformFloatHyperparameter('mixout_alpha',
                                                           lower=0,
                                                           upper=1,
@@ -52,6 +52,9 @@ def get_config_space(max_num_layers=2, max_num_res_blocks=3):
     cs.add_hyperparameter(mixout)
     cs.add_hyperparameter(mixout_alpha)
     cs.add_condition(ConfigSpace.EqualsCondition(mixout_alpha, mixout, 'Yes'))
+
+    shake_shake = ConfigSpace.CategoricalHyperparameter('shake-shake', include_hyperparameter)
+    cs.add_hyperparameter(shake_shake)
 
     cs.add_hyperparameter(ConfigSpace.UniformFloatHyperparameter("learning_rate",
                                                                  lower=10e-4,
@@ -134,14 +137,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Type of ResNet building block
-    if config['block_type'] == 'BasicRes':
-        network = FcResNet(BasicBlock, config, x_train.shape[1], nr_classes).to(device)
-    elif config['block_type'] == 'PreRes':
-        network = FcResNet(PreActBlock, config, x_train.shape[1], nr_classes).to(device)
-    else:
-        logger.error("Unexpected residual block type")
-        raise ValueError("Unexpected residual block type")
+    network = FcResNet(config, x_train.shape[1], nr_classes).to(device)
 
     # Calculate the number of parameters for the network
     total_params = sum(p.numel() for p in network.parameters() if p.requires_grad)
@@ -174,8 +170,10 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
     scheduled_optimizer = ScheduledOptimizer(optimizer, CosineScheduler)
     logger.info('FcResNet started training')
 
-    # array to save the validation accuracy for each epoch
+    # array to save the validation loss for each epoch
     network_val_loss = []
+    # array to save the training loss for each epoch
+    network_train_loss = []
 
     x_val = torch.from_numpy(x_val).float()
     x_val.requires_grad_(False)
@@ -190,6 +188,8 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
         running_loss = 0.0
         nr_batches = 0
         # train the network
+        network.train()
+
         for i in range(0, (x_train.shape[0] - batch_size), batch_size):
 
             indices = np.arange(i, i + batch_size)
@@ -226,8 +226,12 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
             loss = loss_function(criterion, output)
             loss.backward()
+            network_train_loss.append(loss.item())
             running_loss += loss.item()
             nr_batches += 1
+
+        # Using validation data
+        network.eval()
 
         outputs = network(x_val)
         val_loss = criterion(outputs, y_val).item()
@@ -259,6 +263,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
         x_test = torch.from_numpy(x_test).float()
         y_test = torch.from_numpy(y_test).long()
         x_test, y_test = x_test.to(device), y_test.to(device)
+        network.eval()
         outputs = network(x_test)
         test_loss = criterion(outputs, y_test)
         _, predicted = torch.max(outputs.data, 1)
@@ -266,7 +271,11 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
         correct += ((predicted == y_test).sum()).item()
         accuracy = 100 * correct / total
     logger.info('Test loss: %.3f, accuracy of the network: %.3f %%', test_loss.item(), accuracy)
-    output_information = {'test': (test_loss.item(), accuracy), 'validation': network_val_loss}
+    output_information = {
+        'test': (test_loss.item(), accuracy),
+        'validation': network_val_loss,
+        'train': network_train_loss
+    }
     return output_information
 
 
@@ -278,7 +287,7 @@ class FcResNet(nn.Module):
         self.config = config
         self.number_epochs = number_epochs
         # create the residual blocks
-        self.layers = self._make_layer(block, self.config["num_res_blocks"], input_features)
+        self.layers = self._make_layer(self.config["num_res_blocks"], input_features)
         self.fc_layer = nn.Linear(self.config["num_units_%i" % self.config["num_layers"]], int(nr_labels))
         self.softmax_layer = nn.Softmax(1)
 
@@ -296,20 +305,61 @@ class FcResNet(nn.Module):
         out = self.softmax_layer(out)
         return out
 
-    def _make_layer(self, block, num_res_blocks, input_features):
+    def _make_layer(self, num_res_blocks, input_features):
 
         layer = list()
-        layer.append(block(input_features, self.config, 1))
+        layer.append(BasicBlock(input_features, self.config, 1))
         for i in range(2, num_res_blocks + 1):
-            layer.append(block(self.config["num_units_%i" % self.config["num_layers"]], self.config, i))
+            layer.append(BasicBlock(self.config["num_units_%i" % self.config["num_layers"]], self.config, i))
         return nn.Sequential(*layer)
 
 
-class BasicBlock(nn.Module):
+class PreActResPath(nn.Module):
 
     def __init__(self, in_features, config, block_nr):
 
-        super(BasicBlock, self).__init__()
+        super(PreActResPath, self).__init__()
+        self.number_layers = config["num_layers"]
+        self.relu = nn.ReLU(inplace=True)
+        self.projection = None
+        setattr(self, "b_norm_1", nn.BatchNorm1d(in_features))
+        setattr(self, "fc_1", nn.Linear(in_features, config["num_units_1"]))
+
+        # if 'dropout_1' in config:
+        # setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_1']))
+
+        # adding dropout only in the case of a 2 layer res block and only once
+        # TODO generalize
+        setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d' % block_nr]))
+
+        for i in range(2, self.number_layers + 1):
+            setattr(self, "b_norm_%d" % i, nn.BatchNorm1d(config["num_units_%d" % (i - 1)]))
+            setattr(self, "fc_%d" % i, nn.Linear(config["num_units_%d" % (i - 1)], config["num_units_%d" % i]))
+            # if 'dropout_%d' % i in config:
+            # setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
+
+        if in_features != config["num_units_%d" % self.number_layers]:
+            self.projection = nn.Linear(in_features, config["num_units_%d" % self.number_layers])
+
+
+    def forward(self, x):
+
+        out = x
+
+        for i in range(1, self.number_layers + 1):
+            out = getattr(self, 'b_norm_%d' % i)(out)
+            out = self.relu(out)
+            out = getattr(self, 'fc_%d' % i)(out)
+            if getattr(self, 'dropout_%d' % i, None) is not None:
+                out = getattr(self, 'dropout_%d' % i)(out)
+
+        return out
+
+class BasicResPath(nn.Module):
+
+    def __init__(self, in_features, config, block_nr):
+
+        super(BasicResPath, self).__init__()
         self.number_layers = config["num_layers"]
         self.relu = nn.ReLU(inplace=True)
         self.projection = None
@@ -321,17 +371,14 @@ class BasicBlock(nn.Module):
         setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d' % block_nr]))
 
         for i in range(2, self.number_layers + 1):
-            setattr(self, 'fc_%d' % i, nn.Linear(config["num_units_%d" % (i-1)], config["num_units_%d" % i]))
+            setattr(self, 'fc_%d' % i, nn.Linear(config["num_units_%d" % (i - 1)], config["num_units_%d" % i]))
             setattr(self, 'b_norm_%d' % i, nn.BatchNorm1d(config["num_units_%d" % i]))
             # if 'dropout_%d' % i in config:
-                # setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
+            # setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
 
-        if in_features != config["num_units_%d" % self.number_layers]:
-            self.projection = nn.Linear(in_features, config["num_units_%d" % self.number_layers])
 
     def forward(self, x):
 
-        residual = x
         out = x
         for i in range(1, self.number_layers):
             out = getattr(self, 'fc_%d' % i)(out)
@@ -342,55 +389,74 @@ class BasicBlock(nn.Module):
 
         out = getattr(self, 'fc_%d' % self.number_layers)(out)
         out = getattr(self, 'b_norm_%d' % self.number_layers)(out)
-        if self.projection is not None:
-            residual = self.projection(residual)
 
-        out += residual
-        out = self.relu(out)
         return out
 
 
-class PreActBlock(nn.Module):
+class BasicBlock(nn.Module):
 
     def __init__(self, in_features, config, block_nr):
 
-        super(PreActBlock, self).__init__()
+        super(BasicBlock, self).__init__()
 
-        self.number_layers = config["num_layers"]
+        self.training=True
         self.relu = nn.ReLU(inplace=True)
-        self.projection = None
-        setattr(self, "b_norm_1", nn.BatchNorm1d(in_features))
-        setattr(self, "fc_1", nn.Linear(in_features, config["num_units_1"]))
+        # TODO configuration should be taken not hardcoded
+        self.shake_config = (True, True, True)
+        self.block_type = config['block_type']
 
-        # if 'dropout_1' in config:
-            # setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_1']))
+        if self.block_type == 'BasicRes':
+            res_path = BasicResPath
+        elif self.block_type == 'PreRes':
+            res_path = PreActResPath
+        else:
+            raise ValueError("Unexpected residual block type")
 
-        # adding dropout only in the case of a 2 layer res block and only once
-        # TODO generalize
-        setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d' % block_nr]))
+        if config['shake-shake'] == 'Yes':
 
-        for i in range(2, self.number_layers + 1):
-            setattr(self, "b_norm_%d" % i, nn.BatchNorm1d(config["num_units_%d" % (i - 1)]))
-            setattr(self, "fc_%d" % i, nn.Linear(config["num_units_%d" % (i - 1)], config["num_units_%d" % i]))
-            # if 'dropout_%d' % i in config:
-                # setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
+            self.shake_shake = True
+            self.residual_path1 = res_path(in_features, config, block_nr)
+            self.residual_path2 = res_path(in_features, config, block_nr)
+
+        else:
+            self.residual_path1 = res_path(in_features, config, block_nr)
 
         if in_features != config["num_units_%d" % self.number_layers]:
             self.projection = nn.Linear(in_features, config["num_units_%d" % self.number_layers])
+        else:
+            self.projection = None
+
 
     def forward(self, x):
 
         residual = x
-        out = x
-        for i in range(1, self.number_layers + 1):
-            out = getattr(self, 'b_norm_%d' % i)(out)
-            out = self.relu(out)
-            out = getattr(self, 'fc_%d' % i)(out)
-            if getattr(self, 'dropout_%d' % i, None) is not None:
-                out = getattr(self, 'dropout_%d' % i)(out)
+
+        if self.shake_shake:
+
+            x1 = self.residual_path1(x)
+            x2 = self.residual_path2(x)
+
+            if self.training:
+
+                shake_config = self.shake_config
+
+            else:
+
+                shake_config = (False, False, False)
+
+            alpha, beta = utilities.regularization.get_alpha_beta(x.size(0), shake_config, x.is_cuda)
+            out = utilities.regularization.shake_function(x1, x2, alpha, beta)
+
+        else:
+
+            out = self.residual_path1(x)
 
         if self.projection is not None:
             residual = self.projection(residual)
 
         out += residual
+
+        if self.block_type == 'BasicRes':
+            out = self.relu(out)
+
         return out

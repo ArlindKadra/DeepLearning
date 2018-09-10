@@ -79,11 +79,14 @@ def best_conf_val_loss(working_dir):
     best_run = runs[-1]
     # budget = best_run.budget
     validation_curve = best_run.info['val_loss']
+    train_curve = best_run.info['train_loss']
     ax = plt.subplot(111)
-    plt.plot(validation_curve)
+    plt.plot(validation_curve, label='Validation')
+    plt.plot(train_curve, label='Train')
     ax.set_xlabel("Epoch")
-    ax.set_ylabel("Validation Loss")
+    ax.set_ylabel("Loss")
     ax.set_title("Best Hyperparameter Configuration")
+    ax.legend(loc='best')
     # plt.show()
     # Save the figure
     plt.savefig(os.path.join(working_dir, 'validation_curve.png'), bbox_inches='tight')

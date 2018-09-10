@@ -101,12 +101,14 @@ class Slave(Worker):
             )
 
             val_loss_epochs = output['validation']
+            train_loss_epochs = output['train']
             test_loss = output['test'][0]
             test_accuracy = output['test'][1]
             output = {
                 'test_loss': test_loss,
                 'test_accuracy': test_accuracy,
-                'val_loss': list(val_loss_epochs)
+                'val_loss': list(val_loss_epochs),
+                'train_loss': list(train_loss_epochs)
             }
 
         val_loss = output["val_loss"]
