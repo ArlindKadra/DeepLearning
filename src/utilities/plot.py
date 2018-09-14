@@ -116,6 +116,7 @@ def plot_curves(working_dir):
 
         ax.set_ylabel("Validation Loss")
         ax.set_title("Top 5 configs for budget %d" % int(budget))
+        plt.xlim(0, 242)
 
         for i in range(0, 4):
             plt.plot(ordered_val_curves[i], color='%s' % colors[color_index])

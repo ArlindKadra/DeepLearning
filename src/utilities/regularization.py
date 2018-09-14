@@ -112,14 +112,14 @@ def get_alpha_beta(batch_size, shake_config, is_cuda):
     if forward_shake and not shake_image:
         alpha = torch.rand(1)
     elif forward_shake and shake_image:
-        alpha = torch.rand(batch_size).view(batch_size, 1, 1, 1)
+        alpha = torch.rand(batch_size).view(batch_size, 1)
     else:
         alpha = torch.FloatTensor([0.5])
 
     if backward_shake and not shake_image:
         beta = torch.rand(1)
     elif backward_shake and shake_image:
-        beta = torch.rand(batch_size).view(batch_size, 1, 1, 1)
+        beta = torch.rand(batch_size).view(batch_size, 1)
     else:
         beta = torch.FloatTensor([0.5])
 

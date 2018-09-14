@@ -12,7 +12,7 @@ import numpy as np
 
 
 # TODO Max number of layers and res blocks should be read from the config file
-def get_config_space(max_num_layers=2, max_num_res_blocks=3):
+def get_config_space(max_num_layers=2, max_num_res_blocks=14):
 
     optimizers = ['SGD', 'AdamW']
     block_types = ['BasicRes', 'PreRes']
@@ -226,7 +226,6 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
             loss = loss_function(criterion, output)
             loss.backward()
-            network_train_loss.append(loss.item())
             running_loss += loss.item()
             nr_batches += 1
 
@@ -235,6 +234,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
         outputs = network(x_val)
         val_loss = criterion(outputs, y_val).item()
+        network_train_loss.append(running_loss / nr_batches)
         network_val_loss.append(val_loss)
         logger.info('Epoch %d, Train loss: %.3f, Validation loss: %.3f', epoch + 1, running_loss / nr_batches, val_loss)
         logger.info('Learning rate: %.3f', scheduled_optimizer.get_learning_rate())
@@ -281,7 +281,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
 class FcResNet(nn.Module):
 
-    def __init__(self, block, config, input_features, nr_labels, number_epochs=100):
+    def __init__(self, config, input_features, nr_labels, number_epochs=100):
 
         super(FcResNet, self).__init__()
         self.config = config
@@ -401,6 +401,8 @@ class BasicBlock(nn.Module):
 
         self.training=True
         self.relu = nn.ReLU(inplace=True)
+        self.number_layers = config["num_layers"]
+
         # TODO configuration should be taken not hardcoded
         self.shake_config = (True, True, True)
         self.block_type = config['block_type']
@@ -420,6 +422,7 @@ class BasicBlock(nn.Module):
 
         else:
             self.residual_path1 = res_path(in_features, config, block_nr)
+            self.shake_shake = False
 
         if in_features != config["num_units_%d" % self.number_layers]:
             self.projection = nn.Linear(in_features, config["num_units_%d" % self.number_layers])

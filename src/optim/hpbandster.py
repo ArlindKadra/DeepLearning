@@ -114,6 +114,6 @@ class Slave(Worker):
         val_loss = output["val_loss"]
 
         return ({
-            'loss': (np.mean(val_loss)).item(),  # this is the a mandatory field to run hyperband
+            'loss': val_loss[-1],  # this is the a mandatory field to run hyperband
             'info': output  # can be used for any user-defined information - also mandatory
         })
