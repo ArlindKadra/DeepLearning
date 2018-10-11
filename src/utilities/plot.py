@@ -2,7 +2,9 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+from collections import OrderedDict
+from scipy.stats import spearmanr
+import numpy as np
 import os
 import pickle
 import json
@@ -127,3 +129,45 @@ def plot_curves(working_dir):
     # plt.show()
     plt.savefig(os.path.join(working_dir, 'top_curves.png'), bbox_inches='tight')
     plt.close(fig)
+
+
+def plot_rank_correlations(working_dir):
+
+    with open(os.path.join(working_dir, "results.pkl"), "rb") as fp:
+        result = pickle.load(fp)
+
+    values = OrderedDict()
+    fig = plt.figure(4)  # an empty figure with no axes
+    runs = result.get_learning_curves()
+
+    # for each run a dict of config ids as keys and
+    # a list of lists. The inner list contains tuples
+    # with budget and loss
+    for conf_id in runs.keys():
+        # get the inner list
+        configs = runs[conf_id][0]
+        # this config was run for all budgets
+        if len(configs) == 4:
+            for config in configs:
+                if config[0] not in values:
+                    values[config[0]] = []
+                values[config[0]].append(config[1])
+
+    budgets = values.keys()
+    rho, _ = spearmanr([losses for key, losses in values.items()], axis=1)
+    mask = np.zeros_like(rho)
+    # remove redudant information since the matrix is symmetrical
+    mask[np.triu_indices_from(mask)] = True
+    with sns.axes_style("white"):
+        ax = sns.heatmap(
+            rho, mask=mask, vmax=1,
+            annot=True, yticklabels=budgets,
+            xticklabels=budgets, square=True,
+            cmap="YlGnBu"
+        )
+        ax.set_title("Rank correlation")
+        plt.savefig(os.path.join(
+            "/home/kadraa/Documents/task_12/fcresnet",
+            'rank_correlations.png'),
+            bbox_inches='tight')
+        plt.close(fig)

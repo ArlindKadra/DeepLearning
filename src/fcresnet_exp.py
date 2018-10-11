@@ -41,6 +41,7 @@ def main():
         plot.test_loss_over_budgets(working_dir)
         plot.best_conf_val_loss(working_dir)
         plot.plot_curves(working_dir)
+        plot.plot_rank_correlations(working_dir)
         log.general_info(working_dir, duration)
 
 
