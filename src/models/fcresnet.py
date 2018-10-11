@@ -1,13 +1,9 @@
-from utilities.regularization import (
-    get_alpha_beta,
-    mixup_criterion,
-    shake_function,
-)
 from utilities import data
 from optim.adamw import AdamW
 from optim.sgdw import SGDW
 from optim.lr_scheduler import ScheduledOptimizer
 
+import utilities.regularization
 import logging
 import ConfigSpace
 import torch
@@ -216,7 +212,9 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
     logger.info("Number of network parameters %d", total_params)
 
     criterion = nn.CrossEntropyLoss()
-
+    weight_decay = 0
+    if 'weight_decay' in config:
+        weight_decay = config['weight_decay'] 
     # Optimizer to be used
     if config['optimizer'] == 'SGDW':
         # Although l2_regularization is being passed as weight
@@ -226,26 +224,26 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
             network.parameters(),
             lr=config["learning_rate"],
             momentum=config["momentum"],
-            weight_decay=config['weight_decay']
+            weight_decay=weight_decay
         )
     elif config['optimizer'] == 'SGD':
         optimizer = torch.optim.SGD(
             network.parameters(),
             lr=config['learning_rate'],
             momentum=config['momentum'],
-            weight_decay=config['weight_decay']
+            weight_decay=weight_decay
         )
     elif config['optimizer'] == 'AdamW':
         optimizer = AdamW(
             network.parameters(),
             lr=config['learning_rate'],
-            weight_decay=config['weight_decay']
+            weight_decay=weight_decay
         )
     elif config['optimizer'] == 'Adam':
         optimizer = torch.optim.Adam(
             network.parameters(),
             lr=config['learning_rate'],
-            weight_decay=config['weight_decay']
+            weight_decay=weight_decay
         )
     else:
         logger.error("Unexpected optimizer value, "
@@ -256,8 +254,8 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
     scheduled_optimizer = ScheduledOptimizer(
         optimizer,
         num_epochs,
-        config['decay_type'],
-        config['activate_weight_decay']
+        config['activate_weight_decay'],
+        config['decay_type']
     )
     logger.info('FcResNet started training')
 
@@ -299,7 +297,7 @@ def train(config, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
             targets_b = torch.from_numpy(targets_b).long()
             targets_a = targets_a.to(device)
             targets_b = targets_b.to(device)
-            loss_function = mixup_criterion(targets_a, targets_b, lam)
+            loss_function = utilities.regularization.mixup_criterion(targets_a, targets_b, lam)
             x = torch.from_numpy(x).float()
             x = x.to(device)
 
@@ -522,8 +520,8 @@ class BasicBlock(nn.Module):
 
                 shake_config = (False, False, False)
 
-            alpha, beta = get_alpha_beta(x.size(0), shake_config, x.is_cuda)
-            out = shake_function(x1, x2, alpha, beta)
+            alpha, beta = utilities.regularization.get_alpha_beta(x.size(0), shake_config, x.is_cuda)
+            out = utilities.regularization.shake_function(x1, x2, alpha, beta)
 
         else:
 
