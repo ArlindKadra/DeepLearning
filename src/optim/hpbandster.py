@@ -1,22 +1,22 @@
+from hpbandster.optimizers import BOHB
+from hpbandster.core.worker import Worker
+from utilities.search_space import get_fcresnet_config
+from models import fcresnet
+
+import hpbandster.core.nameserver as hpns
+import hpbandster.core.result as hpres
 import model
 import utilities.data
 import utilities.regularization
-from models import fcresnet
-
-import numpy as np
 import os
 import pickle
-from hpbandster.optimizers import BOHB
-import hpbandster.core.nameserver as hpns
-import hpbandster.core.result as hpres
-from hpbandster.core.worker import Worker
 
 
 class Master(object):
 
     def __init__(self, num_workers, num_iterations, run_id, array_id, working_dir, nic_name):
 
-        config_space = fcresnet.get_config_space()
+        config_space = get_fcresnet_config()
         if array_id == 1:
 
             result_logger = hpres.json_result_logger(directory=working_dir, overwrite=True)
