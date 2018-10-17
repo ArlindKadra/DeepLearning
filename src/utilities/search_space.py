@@ -267,6 +267,8 @@ def get_fc_config(max_nr_layers=28):
         )
     )
 
+    activate_dropout = ConfigSpace.CategoricalHyperparameter('activate_dropout', include_hyperparameter)
+
     # it is the upper bound of the nr of layers,
     # since the configuration will actually be sampled.
     for i in range(1, max_nr_layers + 1):
@@ -294,9 +296,6 @@ def get_fc_config(max_nr_layers=28):
             )
         )
 
-    # add drop out for the number of residual blocks
-    for i in range(1, max_num_res_blocks + 1):
-
         dropout = ConfigSpace.UniformFloatHyperparameter(
             "dropout_%d" % i,
             lower=0,
@@ -304,18 +303,23 @@ def get_fc_config(max_nr_layers=28):
             default_value=0.5
         )
         cs.add_hyperparameter(dropout)
+        dropout_cond_1 = ConfigSpace.OrConjunction(
+            ConfigSpace.GreaterThanCondition(
+                dropout,
+                num_layers,
+                i
+            ),
+            ConfigSpace.EqualsCondition(
+                dropout,
+                num_layers,
+                i
+            )
+        )
+        dropout_cond_2 = ConfigSpace.EqualsCondition(dropout, activate_dropout, 'Yes')
         cs.add_condition(
-            ConfigSpace.OrConjunction(
-                ConfigSpace.GreaterThanCondition(
-                    dropout,
-                    num_res_blocks,
-                    i
-                ),
-                ConfigSpace.EqualsCondition(
-                    dropout,
-                    num_res_blocks,
-                    i
-                )
+            ConfigSpace.AndConjunction(
+                dropout_cond_1,
+                dropout_cond_2
             )
         )
 

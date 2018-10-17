@@ -1,20 +1,21 @@
+import os
+import pickle
+
 from hpbandster.optimizers import BOHB
 from hpbandster.core.worker import Worker
-from utilities.search_space import get_fcresnet_config
-from models import fcresnet
-
 import hpbandster.core.nameserver as hpns
 import hpbandster.core.result as hpres
+
+from utilities.search_space import get_fcresnet_config
+from openml_experiment import train
 import model
 import utilities.data
 import utilities.regularization
-import os
-import pickle
 
 
 class Master(object):
 
-    def __init__(self, num_workers, num_iterations, run_id, array_id, working_dir, nic_name):
+    def __init__(self, num_workers, num_iterations, run_id, array_id, working_dir, nic_name, network):
 
         config_space = get_fcresnet_config()
         if array_id == 1:
@@ -89,7 +90,7 @@ class Slave(Worker):
 
             examples, labels = utilities.data.separate_input_sets(x, y)
 
-            output = fcresnet.train(
+            output = train(
                 config,
                 int(budget),
                 examples['train'],

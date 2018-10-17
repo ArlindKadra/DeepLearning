@@ -49,19 +49,22 @@ class Loader(object):
         _mean = mean
         _std = std
 
+
 def get_dataset():
 
     return _x, _y, _categorical
+
 
 def get_mean():
 
     return _mean
 
+
 def get_std():
 
     return _std
 
+
 def get_task_id():
 
     return _task_id
-
