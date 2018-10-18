@@ -41,10 +41,10 @@ class BasicBlock(nn.Module):
 
         super(BasicBlock, self).__init__()
         self.training = True
-        self.linear = nn.Linear(in_features, self.config['num_units_%i' % block_nr])
+        self.linear = nn.Linear(in_features, config['num_units_%i' % block_nr])
         self.relu = nn.ReLU(inplace=True)
         self.dropout = nn.Dropout(p=config['dropout_%i' % block_nr])
-        self.batch_norm = nn.BatchNorm1d(self.config['num_units_%i' % block_nr])
+        self.batch_norm = nn.BatchNorm1d(config['num_units_%i' % block_nr])
 
     def forward(self, x):
 

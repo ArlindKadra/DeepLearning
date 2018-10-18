@@ -147,6 +147,12 @@ def get_fcresnet_config(max_num_layers=2, max_num_res_blocks=14):
             )
         )
 
+    activate_dropout = cs.add_hyperparameter(
+        ConfigSpace.CategoricalHyperparameter(
+            'activate_dropout',
+            include_hyperparameter
+        )
+    )
     # add drop out for the number of residual blocks
     for i in range(1, max_num_res_blocks + 1):
 
@@ -158,16 +164,23 @@ def get_fcresnet_config(max_num_layers=2, max_num_res_blocks=14):
         )
         cs.add_hyperparameter(dropout)
         cs.add_condition(
-            ConfigSpace.OrConjunction(
-                ConfigSpace.GreaterThanCondition(
-                    dropout,
-                    num_res_blocks,
-                    i
-                ),
+            ConfigSpace.AndConjunction(
                 ConfigSpace.EqualsCondition(
                     dropout,
-                    num_res_blocks,
-                    i
+                    activate_dropout,
+                    'Yes'
+                ),
+                ConfigSpace.OrConjunction(
+                    ConfigSpace.GreaterThanCondition(
+                        dropout,
+                        num_res_blocks,
+                        i
+                    ),
+                    ConfigSpace.EqualsCondition(
+                        dropout,
+                        num_res_blocks,
+                        i
+                    )
                 )
             )
         )
