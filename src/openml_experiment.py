@@ -9,7 +9,7 @@ import numpy as np
 
 import model
 from utilities import plot, log
-from optim.hpbandster import Master
+import optim.hpbandster
 from utilities import data, regularization
 from optim.adamw import AdamW
 from optim.sgdw import SGDW
@@ -42,7 +42,7 @@ def main():
     model.Loader(args.task_id)
     working_dir = os.path.join(args.working_dir, 'task_%i' % model.get_task_id(), args.network_type)
     start_time = time.time()
-    Master(args.num_workers, args.num_iterations, args.run_id, args.array_id, working_dir, args.nic_name, args.network_type)
+    optim.hpbandster.Master(args.num_workers, args.num_iterations, args.run_id, args.array_id, working_dir, args.nic_name, args.network_type)
     end_time = time.time()
     duration = (end_time - start_time) / 60
     
@@ -55,7 +55,7 @@ def main():
         log.general_info(working_dir, duration)
 
 
-def train(config, num_epochs, network, x_train, y_train, x_val, y_val, x_test, y_test):
+def train(config, network, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
     logger = logging.getLogger(__name__)
 

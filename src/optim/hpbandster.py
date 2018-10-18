@@ -6,8 +6,8 @@ from hpbandster.core.worker import Worker
 import hpbandster.core.nameserver as hpns
 import hpbandster.core.result as hpres
 
-from utilities.search_space import get_fcresnet_config
-from openml_experiment import train
+from utilities.search_space import get_fcresnet_config, get_fc_config
+import openml_experiment
 import model
 import utilities.data
 import utilities.regularization
@@ -16,8 +16,10 @@ import utilities.regularization
 class Master(object):
 
     def __init__(self, num_workers, num_iterations, run_id, array_id, working_dir, nic_name, network):
-
-        config_space = get_fcresnet_config()
+        if network == 'fcresnet':
+            config_space = get_fcresnet_config()
+        else:
+            config_space = get_fc_config()
         if array_id == 1:
 
             result_logger = hpres.json_result_logger(directory=working_dir, overwrite=True)
@@ -90,8 +92,9 @@ class Slave(Worker):
 
             examples, labels = utilities.data.separate_input_sets(x, y)
 
-            output = train(
+            output = openml_experiment.train(
                 config,
+                'fcnet',
                 int(budget),
                 examples['train'],
                 labels['train'],

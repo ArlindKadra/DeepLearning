@@ -281,7 +281,7 @@ def get_fc_config(max_nr_layers=28):
     )
 
     activate_dropout = ConfigSpace.CategoricalHyperparameter('activate_dropout', include_hyperparameter)
-
+    cs.add_hyperparameter(activate_dropout)
     # it is the upper bound of the nr of layers,
     # since the configuration will actually be sampled.
     for i in range(1, max_nr_layers + 1):

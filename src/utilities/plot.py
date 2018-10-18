@@ -167,7 +167,7 @@ def plot_rank_correlations(working_dir):
         )
         ax.set_title("Rank correlation")
         plt.savefig(os.path.join(
-            "/home/kadraa/Documents/task_12/fcresnet",
+            working_dir,
             'rank_correlations.png'),
             bbox_inches='tight')
         plt.close(fig)
