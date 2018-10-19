@@ -43,6 +43,7 @@ class PreActResPath(nn.Module):
 
         super(PreActResPath, self).__init__()
         self.number_layers = config["num_layers"]
+        self.activate_dropout = True if config['activate_dropout'] == 'Yes' else False
         self.relu = nn.ReLU(inplace=True)
         self.projection = None
         setattr(self, "b_norm_1", nn.BatchNorm1d(in_features))
@@ -53,7 +54,8 @@ class PreActResPath(nn.Module):
 
         # adding dropout only in the case of a 2 layer res block and only once
         # TODO generalize
-        setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d' % block_nr]))
+        if self.activate_dropout:
+            setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d' % block_nr]))
 
         for i in range(2, self.number_layers + 1):
             setattr(self, "b_norm_%d" % i, nn.BatchNorm1d(config["num_units_%d" % (i - 1)]))
@@ -85,13 +87,15 @@ class BasicResPath(nn.Module):
         super(BasicResPath, self).__init__()
         self.number_layers = config["num_layers"]
         self.relu = nn.ReLU(inplace=True)
+        self.activate_dropout = True if config['activate_dropout'] == 'Yes' else False
         self.projection = None
         setattr(self, "fc_1", nn.Linear(in_features, config["num_units_1"]))
         setattr(self, "b_norm_1", nn.BatchNorm1d(config["num_units_1"]))
 
         # adding dropout only in the case of a 2 layer res block and only once
         # TODO generalize
-        setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d' % block_nr]))
+        if self.activate_dropout:
+            setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d' % block_nr]))
 
         for i in range(2, self.number_layers + 1):
             setattr(self, 'fc_%d' % i, nn.Linear(config["num_units_%d" % (i - 1)], config["num_units_%d" % i]))
