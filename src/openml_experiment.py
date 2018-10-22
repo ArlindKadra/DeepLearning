@@ -71,27 +71,35 @@ def main():
         log.general_info(working_dir, duration)
 
 
-def train(config, network, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
+def train(config, network, num_epochs, x, y, set_indices):
 
     logger = logging.getLogger(__name__)
     dataset_categorical = model._categorical
     # number of dataset classes
-    nr_classes = max(y_train) + 1
+    nr_classes = max(y) + 1
 
-    # normalize examples
+    # unpack set indices
+    train_indices = set_indices[0]
+    val_indices = set_indices[1]
+    test_indices = set_indices[2]
+
+    # calculate mean and std for train set
+    x_train = x[train_indices]
     mean, std = data.calculate_stat(x_train)
-    x_train = data.feature_normalization(x_train, mean, std, dataset_categorical)
-    x_val = data.feature_normalization(x_val, mean, std, dataset_categorical)
-    x_test = data.feature_normalization(x_test, mean, std, dataset_categorical)
+    x = data.feature_normalization(x, mean, std, dataset_categorical)
 
     # Deal with categorical attributes
-    if dataset_categorical:
+    if dataset_categorical is not None:
 
         enc = OneHotEncoder(categorical_features=dataset_categorical, dtype=np.float32)
-        x_train = enc.fit_transform(x_train).todense()
-        x_val = enc.fit_transform(x_val).todense()
-        x_test = enc.fit_transform(x_test).todense()
+        x = enc.fit_transform(x).todense()
 
+    x_train = x[train_indices]
+    x_val = x[val_indices]
+    x_test = x[test_indices]
+    y_train = y[train_indices]
+    y_val = y[val_indices]
+    y_test = y[test_indices]
 
     # Get the batch size
     batch_size = config["batch_size"]
@@ -245,10 +253,9 @@ def train(config, network, num_epochs, x_train, y_train, x_val, y_val, x_test, y
                 'train': network_train_loss
             }
 
-
         _, predicted = torch.max(outputs.data, 1)
         total += y_val.size(0)
-        correct += ((predicted == y_test).sum()).item()
+        correct += ((predicted == y_val).sum()).item()
         val_accuracy = 100 * correct / total
 
         network_train_loss.append(running_loss / nr_batches)

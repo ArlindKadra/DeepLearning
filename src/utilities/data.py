@@ -28,8 +28,7 @@ def feature_normalization(x, mean, std, categorical=None):
                 if not categorical[column]:
                     x[row, column] = (x[row, column] - mean[column]) / std[column]
 
-    return x, mean, std
-
+    return x
 
 def calculate_stat(x):
 
@@ -39,25 +38,24 @@ def calculate_stat(x):
     return mean, std
 
 
-def shuffle_data(x, y):
+def determine_input_sets(nr_examples):
 
-    indices = np.arange(0, len(x))
+    # Generate list with example indexes
+    slice = int(1/10 * nr_examples)
+    indices = np.arange(0, nr_examples)
     np.random.seed(11)
     shuffled_indices = np.random.permutation(indices)
-    return x[shuffled_indices], y[shuffled_indices]
+    # determine the indices for each set
+    test = shuffled_indices[0:slice]
+    validation = shuffled_indices[slice + 1:(2 * slice) + 1]
+    train = shuffled_indices[(2 * slice) + 1:]
+
+    return (train, validation, test)
 
 
 def separate_input_sets(x, y):
 
-    x_train, x_test, \
-        y_train, y_test = \
-        train_test_split(x, y, test_size=1 / 10, random_state=69)
-    x_train, x_val, \
-        y_train, y_val = \
-        train_test_split(x_train, y_train, test_size=1 / 9)
 
-    examples = {'train': x_train, 'val': x_val, 'test': x_test}
-    labels = {'train': y_train, 'val': y_val, 'test': y_test}
 
     return examples, labels
 

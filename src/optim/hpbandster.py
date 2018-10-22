@@ -91,20 +91,14 @@ class Slave(Worker):
         if configuration.cross_validation:
             output = utilities.regularization.cross_validation(int(budget), x, y, config)
         else:
-            x, y = utilities.data.shuffle_data(x, y)
-
-            examples, labels = utilities.data.separate_input_sets(x, y)
-
+            set_indices = utilities.data.determine_input_sets(len(x))
             output = openml_experiment.train(
                 config,
                 configuration.network_type,
                 int(budget),
-                examples['train'],
-                labels['train'],
-                examples['val'],
-                labels['val'],
-                examples['test'],
-                labels['test']
+                x,
+                y,
+                set_indices
             )
 
             val_loss_epochs = output['validation'][0]

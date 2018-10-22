@@ -36,12 +36,14 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
     kf = KFold(n_splits=nr_folds, shuffle=True, random_state=11)
 
     for train_indices, test_indices in kf.split(x):
-        x_train, y_train = x[train_indices], y[train_indices]
-        x_train, x_validation, \
-            y_train, y_validation = \
-            train_test_split(x_train, y_train, test_size=1 / (nr_folds - 1), random_state=69)
-        x_test, y_test = x[test_indices], y[test_indices]
-        output = models.fcresnet.train(config, nr_epochs, x_train, y_train, x_validation, y_validation, x_test, y_test)
+
+        # calculate the size of the validation fold
+        val_fold_size = int((1 / (nr_folds - 1)) * len(train_indices))
+        val_indices  = train_indices[0:val_fold_size]
+        # calculate the refined train fold size
+        refined_train_indices = train_indices[val_fold_size + 1:]
+        set_indices = (refined_train_indices, val_indices, test_indices)
+        output = models.fcresnet.train(config, nr_epochs, x, y, set_indices)
 
         # check last element if it is not inf
         # otherwise there is no point in running

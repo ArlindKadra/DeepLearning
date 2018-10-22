@@ -37,7 +37,7 @@ def load_data(working_dir):
             # append test set result for budget
             if budget not in accuracies:
                 accuracies[budget] = []
-                if not math.isnan(test_loss):
+                if not math.isinf(test_loss):
                     accuracies[budget].append(test_loss)
 
             # create dict for each budget
