@@ -30,13 +30,13 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
     # Validation had similiar loss to the training data while test data had a very high one.
     # np.random.shuffle(x)
 
-    kf = KFold(n_splits=nr_folds, shuffle=True)
+    kf = KFold(n_splits=nr_folds, shuffle=True, random_state=69)
 
     for train_indices, test_indices in kf.split(x):
         x_train, y_train = x[train_indices], y[train_indices]
         x_train, x_validation, \
             y_train, y_validation = \
-            train_test_split(x_train, y_train, test_size=1 / (nr_folds - 1))
+            train_test_split(x_train, y_train, test_size=1 / (nr_folds - 1), random_state=69)
         x_test, y_test = x[test_indices], y[test_indices]
         output = models.fcresnet.train(config, nr_epochs, x_train, y_train, x_validation, y_validation, x_test, y_test)
         val_loss_epochs = np.add(val_loss_epochs, output['validation'])

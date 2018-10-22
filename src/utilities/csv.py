@@ -6,10 +6,10 @@ import xlsxwriter
 
 def create_results(working_dir):
 
-    workbook = xlsxwriter.Workbook('Thesis_experiment.xlsx')
+    workbook = xlsxwriter.Workbook(os.path.join(working_dir, 'Thesis_experiment.xlsx'))
     worksheet = workbook.add_worksheet('Results')
     highlight_format = workbook.add_format({'bold': True, 'font_color': 'red'})
-    networks = ['fcresnet', 'fcnet']
+    networks = ['FcResNet', 'FcNet']
     worksheet.write(0, 0, 'Task')
     # write network names in order
     for i in range(0, len(networks)):
@@ -20,10 +20,16 @@ def create_results(working_dir):
 
         values = []
         for network in networks:
-            with open(os.path.join(working_dir, task_id, network, "best_config_info.txt"), "r") as fp:
-                output = json.load(fp)
-                values.append(output['test_accuracy'])
-
+            try:
+                with open(os.path.join(working_dir, 'task_%d' % task_id, network, "best_config_info.txt"), "r") as fp:
+                    output = json.load(fp)
+                    values.append(output['test_accuracy'])
+            except FileNotFoundError:
+                """ 
+                The experiment has failed, a value
+                of -1 showcases that
+                """
+                values.append(-1)
         # add task id
         worksheet.write(row, 0, task_id)
         # find the max index
@@ -53,5 +59,5 @@ def read_task_ids(working_dir):
 
     return numbers
 
-
-# read_task_ids("/home/kadraa/Documents")
+# create_results("give input")
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

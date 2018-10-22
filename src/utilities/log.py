@@ -6,12 +6,12 @@ import os
 import openml
 
 
-def prepare_openml100():
+def prepare_openml100(working_dir):
 
     # revised version of OpenML100
     benchmark_suite = openml.study.get_study("99", "tasks")
     for task in list(benchmark_suite.tasks):
-        with open(os.path.join('/home/kadraa/Documents', 'classification_tasks_100.txt'), "a") as file:
+        with open(os.path.join(working_dir, 'classification_tasks_100.txt'), "a") as file:
             file.write(str(task))
             file.write(" ")
 

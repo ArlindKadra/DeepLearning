@@ -32,6 +32,14 @@ def feature_normalization(x, categorical=None):
     return x, mean, std
 
 
+def calculate_stat(x, categorical):
+
+    mean = np.mean(x, axis=0)
+    std = np.std(x, axis=0)
+
+    return mean, std
+
+
 def shuffle_data(x, y):
 
     indices = np.arange(0, len(x))
