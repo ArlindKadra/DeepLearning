@@ -12,12 +12,13 @@ for fold in range(1):
     print(y[test_indeces])
     print(len(test_indeces))
 """
+def bam(value):
+    value = 6
 
-import numpy as np
 
-a = [
-    [1,2,3,4,6],
-    [1,2,3,4,5],
-]
+def a():
+    b = 5
+    bam(b)
+    print(b)
 
-print(np.mean(a, axis=0))
+a()

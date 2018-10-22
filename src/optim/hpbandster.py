@@ -9,6 +9,7 @@ import hpbandster.core.result as hpres
 from utilities.search_space import get_fcresnet_config, get_fc_config
 import openml_experiment
 import model
+import config as configuration
 import utilities.data
 import utilities.regularization
 
@@ -16,10 +17,12 @@ import utilities.regularization
 class Master(object):
 
     def __init__(self, num_workers, num_iterations, run_id, array_id, working_dir, nic_name, network):
+
         if network == 'fcresnet':
             config_space = get_fcresnet_config()
         else:
             config_space = get_fc_config()
+
         if array_id == 1:
 
             result_logger = hpres.json_result_logger(directory=working_dir, overwrite=True)
@@ -72,7 +75,7 @@ class Master(object):
 
 class Slave(Worker):
 
-    def compute(self, config, budget, k_fold_validation=False, *args, **kwargs):
+    def compute(self, config, budget, *args, **kwargs):
         """All the functionality that the worker will compute.
 
         The worker will train the neural network and
@@ -85,7 +88,7 @@ class Slave(Worker):
         """
         x, y, _ = model.get_dataset()
 
-        if k_fold_validation:
+        if configuration.cross_validation:
             output = utilities.regularization.cross_validation(int(budget), x, y, config)
         else:
             x, y = utilities.data.shuffle_data(x, y)
@@ -94,7 +97,7 @@ class Slave(Worker):
 
             output = openml_experiment.train(
                 config,
-                'fcnet',
+                configuration.network_type,
                 int(budget),
                 examples['train'],
                 labels['train'],
@@ -104,13 +107,15 @@ class Slave(Worker):
                 labels['test']
             )
 
-            val_loss_epochs = output['validation']
+            val_loss_epochs = output['validation'][0]
+            val_accuracy = output['validation'][1]
             train_loss_epochs = output['train']
             test_loss = output['test'][0]
             test_accuracy = output['test'][1]
             output = {
                 'test_loss': test_loss,
                 'test_accuracy': test_accuracy,
+                'val_accuracy': val_accuracy,
                 'val_loss': list(val_loss_epochs),
                 'train_loss': list(train_loss_epochs)
             }

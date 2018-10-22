@@ -1,8 +1,7 @@
 from utilities import data
 import logging
 import openml
-import numpy as np
-from sklearn.preprocessing import OneHotEncoder
+
 
 _x = None
 _y = None
@@ -14,7 +13,7 @@ _task_id = None
 
 class Loader(object):
 
-    def __init__(self, task_id=3, torch=True):
+    def __init__(self, task_id=3):
 
         global _x, _y, _categorical, _mean, _std, _task_id
         logger = logging.getLogger(__name__)
@@ -33,21 +32,9 @@ class Loader(object):
             logger.error('Input contains NaN values')
             raise ValueError("Input contains NaN values")
 
-        if True in categorical:
-            x, mean, std = data.feature_normalization(x, categorical)
-            if torch:
-                enc = OneHotEncoder(categorical_features=categorical, dtype=np.float32)
-                x = enc.fit_transform(x).todense()
-        else:
-            x, mean, std = data.feature_normalization(x, None)
-
-        logger.info("Data normalized")
-
         _x = x
         _y = y
         _categorical = categorical
-        _mean = mean
-        _std = std
 
 
 def get_dataset():

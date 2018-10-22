@@ -29,7 +29,7 @@ def create_results(working_dir):
                 The experiment has failed, a value
                 of -1 showcases that
                 """
-                values.append(-1)
+                values.append(-1)  
         # add task id
         worksheet.write(row, 0, task_id)
         # find the max index
@@ -60,4 +60,3 @@ def read_task_ids(working_dir):
     return numbers
 
 # create_results("give input")
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

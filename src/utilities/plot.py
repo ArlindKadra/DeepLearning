@@ -2,14 +2,16 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
+sns.set()
+
 from collections import OrderedDict
-from scipy.stats import spearmanr
-import numpy as np
 import os
 import pickle
 import json
+import math
 
-sns.set()
+from scipy.stats import spearmanr
+import numpy as np
 
 
 def load_data(working_dir):
@@ -35,7 +37,8 @@ def load_data(working_dir):
             # append test set result for budget
             if budget not in accuracies:
                 accuracies[budget] = []
-            accuracies[budget].append(test_loss)
+                if not math.isnan(test_loss):
+                    accuracies[budget].append(test_loss)
 
             # create dict for each budget
             if budget not in val_losses:

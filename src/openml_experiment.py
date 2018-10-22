@@ -2,12 +2,15 @@ import time
 import os
 import argparse
 import logging
+import math
 
 import torch
 import torch.nn as nn
 import numpy as np
+from sklearn.preprocessing import OneHotEncoder
 
 import model
+import config
 from utilities import plot, log
 import optim.hpbandster
 from utilities import data, regularization
@@ -28,21 +31,34 @@ def main():
     parser.add_argument('--working_dir', help='working directory to store live data.', default='.', type=str)
     parser.add_argument('--nic_name', help='name of the Network Interface Card.', default='lo', type=str)
     parser.add_argument('--network_type', help='network to be used for the task.', default='fcresnet', type=str)
+    parser.add_argument('--cluster_workload', help='Workload management package.', default='slurm', type=str)
+    parser.add_argument('--cross_validation', help='Cross-Validation flag', default=False, type=bool)
     parser.add_argument('--task_id', help='Task id so that the dataset can be retrieved from OpenML.',
                         default=3, type=int)
 
     args = parser.parse_args()
-
+    config.network_type = args.network_type
+    config.cross_validation = args.cross_validation
     # initialize logging
     logger = logging.getLogger(__name__)
+
     # TODO put verbose into configuration file
     verbose = False
-    log.setup_logging(args.run_id + "_" + str(args.array_id), logging.DEBUG if verbose else logging.INFO)
+
+    # In MOAB, the run_id also has the array_id. This
+    # conflicts with the way BOHB stores the nameserver
+    # config
+    if args.cluster_workload == 'slurm':
+        run_id = args.run_id
+    else:
+        run_id = args.run_id[:-3]
+
+    log.setup_logging(run_id + "_" + str(args.array_id), logging.DEBUG if verbose else logging.INFO)
     logger.info('DeepResNet Experiment started')
     model.Loader(args.task_id)
     working_dir = os.path.join(args.working_dir, 'task_%i' % model.get_task_id(), args.network_type)
     start_time = time.time()
-    optim.hpbandster.Master(args.num_workers, args.num_iterations, args.run_id, args.array_id, working_dir, args.nic_name, args.network_type)
+    optim.hpbandster.Master(args.num_workers, args.num_iterations, run_id, args.array_id, working_dir, args.nic_name, args.network_type)
     end_time = time.time()
     duration = (end_time - start_time) / 60
     
@@ -58,9 +74,24 @@ def main():
 def train(config, network, num_epochs, x_train, y_train, x_val, y_val, x_test, y_test):
 
     logger = logging.getLogger(__name__)
-
+    dataset_categorical = model._categorical
     # number of dataset classes
     nr_classes = max(y_train) + 1
+
+    # normalize examples
+    mean, std = data.calculate_stat(x_train)
+    x_train = data.feature_normalization(x_train, mean, std, dataset_categorical)
+    x_val = data.feature_normalization(x_val, mean, std, dataset_categorical)
+    x_test = data.feature_normalization(x_test, mean, std, dataset_categorical)
+
+    # Deal with categorical attributes
+    if dataset_categorical:
+
+        enc = OneHotEncoder(categorical_features=dataset_categorical, dtype=np.float32)
+        x_train = enc.fit_transform(x_train).todense()
+        x_val = enc.fit_transform(x_val).todense()
+        x_test = enc.fit_transform(x_test).todense()
+
 
     # Get the batch size
     batch_size = config["batch_size"]
@@ -190,6 +221,7 @@ def train(config, network, num_epochs, x_train, y_train, x_val, y_val, x_test, y
                 raise ValueError("NaN value in output")
 
             loss = loss_function(criterion, output)
+
             loss.backward()
             running_loss += loss.item()
             nr_batches += 1
@@ -197,16 +229,46 @@ def train(config, network, num_epochs, x_train, y_train, x_val, y_val, x_test, y
         # Using validation data
         network.eval()
 
+        correct = 0
+        total = 0
         outputs = network(x_val)
         val_loss = criterion(outputs, y_val).item()
+
+        # bad configuration, stop training
+        # add -1 as the loss for the validation
+        # and test
+        if np.isnan(val_loss):
+            network_val_loss.append(math.inf)
+            return {
+                'test': (math.inf, 0),
+                'validation': (network_val_loss, 0),
+                'train': network_train_loss
+            }
+
+
+        _, predicted = torch.max(outputs.data, 1)
+        total += y_val.size(0)
+        correct += ((predicted == y_test).sum()).item()
+        val_accuracy = 100 * correct / total
+
         network_train_loss.append(running_loss / nr_batches)
         network_val_loss.append(val_loss)
-        logger.info('Epoch %d, Train loss: %.3f, Validation loss: %.3f',
-                    epoch + 1, running_loss / nr_batches, val_loss)
-        logger.info('Learning rate: %.3f',
-                    scheduled_optimizer.get_learning_rate())
-        logger.info('Weight decay: %.3f',
-                    scheduled_optimizer.get_weight_decay())
+        logger.info(
+            'Epoch %d, Train loss: %.3f, '
+            'Validation loss: %.3f, accuracy %.3f',
+            epoch + 1,
+            running_loss / nr_batches,
+            val_loss,
+            val_accuracy
+        )
+        logger.info(
+            'Learning rate: %.3f',
+            scheduled_optimizer.get_learning_rate()
+        )
+        logger.info(
+            'Weight decay: %.3f',
+            scheduled_optimizer.get_weight_decay()
+        )
 
         scheduled_optimizer.step(epoch)
 
@@ -226,7 +288,7 @@ def train(config, network, num_epochs, x_train, y_train, x_val, y_val, x_test, y
     logger.info('Test loss: %.3f, accuracy of the network: %.3f %%', test_loss.item(), accuracy)
     output_information = {
         'test': (test_loss.item(), accuracy),
-        'validation': network_val_loss,
+        'validation': (network_val_loss, val_accuracy),
         'train': network_train_loss
     }
     return output_information

@@ -1,10 +1,12 @@
-import models.fcresnet
+import math
 
 import torch
 from torch.autograd import Function
 import numpy as np
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
+
+import models.fcresnet
 
 
 def cross_validation(nr_epochs, x, y, config, nr_folds=10):
@@ -23,6 +25,7 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
     """
 
     val_loss_epochs = np.zeros(nr_epochs)
+    val_accuracy = 0
     test_loss = 0
     test_accuracy = 0
 
@@ -30,7 +33,7 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
     # Validation had similiar loss to the training data while test data had a very high one.
     # np.random.shuffle(x)
 
-    kf = KFold(n_splits=nr_folds, shuffle=True, random_state=69)
+    kf = KFold(n_splits=nr_folds, shuffle=True, random_state=11)
 
     for train_indices, test_indices in kf.split(x):
         x_train, y_train = x[train_indices], y[train_indices]
@@ -39,21 +42,37 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
             train_test_split(x_train, y_train, test_size=1 / (nr_folds - 1), random_state=69)
         x_test, y_test = x[test_indices], y[test_indices]
         output = models.fcresnet.train(config, nr_epochs, x_train, y_train, x_validation, y_validation, x_test, y_test)
-        val_loss_epochs = np.add(val_loss_epochs, output['validation'])
+
+        # check last element if it is not inf
+        # otherwise there is no point in running
+        # cross validation on a bad config
+        if (output['validation'][0])[-1] is math.inf:
+            return {
+                'train_loss': list(output['train']),
+                'val_loss': list(output['validation'][0]),
+                'val_accuracy': 0,
+                'test_loss': math.inf,
+                'test_accuracy': 0
+        }
+
         train_loss_epochs = np.add(train_loss_epochs, output['train'])
+        val_loss_epochs = np.add(val_loss_epochs, output['validation'][0])
+        val_accuracy += output['validation'][1]
         test_loss += output['test'][0]
         test_accuracy += output['test'][1]
 
     # average the values over the folds
-    val_loss_epochs = val_loss_epochs / nr_folds
     train_loss_epochs = train_loss_epochs / nr_folds
+    val_loss_epochs = val_loss_epochs / nr_folds
+    val_accuracy = val_accuracy / nr_folds
     test_loss = test_loss / nr_folds
     test_accuracy = test_accuracy / nr_folds
     result = {
-        'test_loss': test_loss,
-        'test_accuracy': test_accuracy,
+        'train_loss': list(train_loss_epochs),
         'val_loss': list(val_loss_epochs),
-        'train_loss': list(train_loss_epochs)
+        'val_accuracy': val_accuracy,
+        'test_loss': test_loss,
+        'test_accuracy': test_accuracy
     }
     return result
 
