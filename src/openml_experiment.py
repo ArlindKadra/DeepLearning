@@ -89,7 +89,7 @@ def train(config, network, num_epochs, x, y, set_indices):
     x = data.feature_normalization(x, mean, std, dataset_categorical)
 
     # Deal with categorical attributes
-    if dataset_categorical is not None:
+    if True in dataset_categorical:
 
         enc = OneHotEncoder(categorical_features=dataset_categorical, dtype=np.float32)
         x = enc.fit_transform(x).todense()
