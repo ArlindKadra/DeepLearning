@@ -37,8 +37,8 @@ def load_data(working_dir):
             # append test set result for budget
             if budget not in accuracies:
                 accuracies[budget] = []
-                if not math.isinf(test_loss):
-                    accuracies[budget].append(test_loss)
+            if not math.isinf(test_loss):
+                accuracies[budget].append(test_loss)
 
             # create dict for each budget
             if budget not in val_losses:
@@ -66,7 +66,6 @@ def test_loss_over_budgets(working_dir):
     ax.get_yaxis().tick_left()
     ax.set_xlabel("Budget (epochs)")
     ax.set_ylabel("Test Loss")
-    ax.set_title("AutoFCResnet")
     # plt.show()
     # Save the figure
     plt.savefig(os.path.join(working_dir, 'budget_test_loss.png'), bbox_inches='tight')
