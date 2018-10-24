@@ -33,6 +33,13 @@ def main():
     parser.add_argument('--network_type', help='network to be used for the task.', default='fcresnet', type=str)
     parser.add_argument('--cluster_workload', help='Workload management package.', default='slurm', type=str)
     parser.add_argument('--cross_validation', help='Cross-Validation flag', default=False, type=bool)
+    parser.add_argument(
+        '--predictive_measure',
+        help='Measure which will be passed to the hyperparameter '
+             'optimization procedure on the end of the run',
+        default='loss',
+        type=str
+    )
     parser.add_argument('--task_id', help='Task id so that the dataset can be retrieved from OpenML.',
                         default=3, type=int)
 
@@ -178,6 +185,8 @@ def train(config, network, num_epochs, x, y, set_indices):
 
     # array to save the validation loss for each epoch
     network_val_loss = []
+    # array to save the validation accuracy for each epoch
+    network_val_accuracy = []
     # array to save the training loss for each epoch
     network_train_loss = []
 
@@ -260,6 +269,7 @@ def train(config, network, num_epochs, x, y, set_indices):
 
         network_train_loss.append(running_loss / nr_batches)
         network_val_loss.append(val_loss)
+        network_val_accuracy.append(val_accuracy)
         logger.info(
             'Epoch %d, Train loss: %.3f, '
             'Validation loss: %.3f, accuracy %.3f',
@@ -295,7 +305,7 @@ def train(config, network, num_epochs, x, y, set_indices):
     logger.info('Test loss: %.3f, accuracy of the network: %.3f %%', test_loss.item(), accuracy)
     output_information = {
         'test': (test_loss.item(), accuracy),
-        'validation': (network_val_loss, val_accuracy),
+        'validation': (network_val_loss, network_val_accuracy),
         'train': network_train_loss
     }
     return output_information

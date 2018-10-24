@@ -25,7 +25,7 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
     """
 
     val_loss_epochs = np.zeros(nr_epochs)
-    val_accuracy = 0
+    val_accuracy = np.zeros(nr_epochs)
     test_loss = 0
     test_accuracy = 0
 
@@ -52,14 +52,14 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
             return {
                 'train_loss': list(output['train']),
                 'val_loss': list(output['validation'][0]),
-                'val_accuracy': 0,
+                'val_accuracy': list(output['validation'][1]),
                 'test_loss': math.inf,
                 'test_accuracy': 0
         }
 
         train_loss_epochs = np.add(train_loss_epochs, output['train'])
         val_loss_epochs = np.add(val_loss_epochs, output['validation'][0])
-        val_accuracy += output['validation'][1]
+        val_accuracy = np.add(val_accuracy, output['validation'][1])
         test_loss += output['test'][0]
         test_accuracy += output['test'][1]
 
@@ -72,7 +72,7 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
     result = {
         'train_loss': list(train_loss_epochs),
         'val_loss': list(val_loss_epochs),
-        'val_accuracy': val_accuracy,
+        'val_accuracy': list(val_accuracy),
         'test_loss': test_loss,
         'test_accuracy': test_accuracy
     }
