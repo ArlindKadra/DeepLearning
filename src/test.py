@@ -12,13 +12,10 @@ for fold in range(1):
     print(y[test_indeces])
     print(len(test_indeces))
 """
-def bam(value):
-    value = 6
-
-
-def a():
-    b = 5
-    bam(b)
-    print(b)
-
-a()
+import re
+extra_match = re.search(r"\D+\d+(\d|\])*$", "1111111_[1]")
+if extra_match:
+    extra_part = extra_match.group(0)
+    print(extra_part)
+    run_id = re.sub(extra_part, "", "1111111_[1]")
+print(run_id)

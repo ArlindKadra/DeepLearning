@@ -109,7 +109,6 @@ class Slave(Worker):
             output = {
                 'test_loss': test_loss,
                 'test_accuracy': test_accuracy,
-                'val_accuracy': list(val_accuracy),
                 'val_loss': list(val_loss_epochs),
                 'train_loss': list(train_loss_epochs)
             }
@@ -118,7 +117,7 @@ class Slave(Worker):
             val_loss = output["val_loss"]
             result_measure = val_loss[-1]
         elif configuration.predictive_measure == 'error_rate':
-            success_rate_val = output['val_accuracy']
+            success_rate_val = val_accuracy
             last_success_rate = success_rate_val[-1]
             # it is in % so dividing by 100
             result_measure = 1 - (last_success_rate / 100)
