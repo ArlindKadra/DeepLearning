@@ -1,5 +1,7 @@
 import os
 import pickle
+import math
+import numpy as np
 
 from hpbandster.optimizers import BOHB
 from hpbandster.core.worker import Worker
@@ -115,7 +117,10 @@ class Slave(Worker):
 
         if configuration.predictive_measure == 'loss':
             val_loss = output["val_loss"]
-            result_measure = val_loss[-1]
+            if math.isinf(val_loss[-1]):
+                result_measure = np.NaN
+            else:
+                result_measure = val_loss[-1]
         elif configuration.predictive_measure == 'error_rate':
             success_rate_val = val_accuracy
             last_success_rate = success_rate_val[-1]
