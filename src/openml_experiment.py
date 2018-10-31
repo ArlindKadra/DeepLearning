@@ -44,6 +44,7 @@ def main():
                         default=3, type=int)
 
     args = parser.parse_args()
+    config.predictive_measure = args.predictive_measure
     config.network_type = args.network_type
     config.cross_validation = args.cross_validation
     # initialize logging
