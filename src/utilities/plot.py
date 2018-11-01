@@ -81,12 +81,25 @@ def best_conf_val_loss(working_dir):
     run_id = result.get_incumbent_id()
     runs = result.get_runs_by_id(run_id)
     best_run = runs[-1]
+    info = best_run.info
+    budget = best_run.budget
+    epochs = [x for x in range(1, budget + 1)]
     # budget = best_run.budget
-    validation_curve = best_run.info['val_loss']
-    train_curve = best_run.info['train_loss']
+    validation_curve = info['val_loss']
+    train_curve = info['train_loss']
     ax = plt.subplot(111)
-    plt.plot(validation_curve, label='Validation')
-    plt.plot(train_curve, label='Train')
+    plt.plot(epochs, validation_curve, label='Validation', color='#f92418')
+    plt.plot(epochs, train_curve, label='Train', color='#1b07fc')
+    # Check if we have bounds and
+    # if we do, get them.
+    if 'train_loss_min' in info:
+        min_train_curve = info['train_loss_min']
+        max_train_curve = info['train_loss_max']
+        min_val_curve = info['val_loss_min']
+        max_val_curve = info['val_loss_max']
+        plt.fill_between(epochs, min_train_curve, max_train_curve, color='#796df9')
+        plt.fill_between(epochs, min_val_curve, max_val_curve, color='#ff7a72')
+
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Loss")
     ax.set_title("Best Hyperparameter Configuration")

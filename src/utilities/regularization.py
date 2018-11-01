@@ -23,9 +23,9 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
         A float value which shows the average accuracy
         achieved while training with cross-validation.
     """
-
-    val_loss_epochs = np.zeros(nr_epochs)
-    val_accuracy = np.zeros(nr_epochs)
+    train_loss_epochs = []
+    val_loss_epochs = []
+    val_accuracy = []
     test_loss = 0
     test_accuracy = 0
 
@@ -50,18 +50,26 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
         # cross validation on a bad config
         if (output['validation'][0])[-1] is math.inf:
             return {
-                'train_loss': list(output['train']),
-                'val_loss': list(output['validation'][0]),
-                'val_accuracy': list(output['validation'][1]),
+                'train_loss': output['train'],
+                'val_loss': output['validation'][0],
+                'val_accuracy': output['validation'][1],
                 'test_loss': math.inf,
                 'test_accuracy': 0
         }
 
-        train_loss_epochs = np.add(train_loss_epochs, output['train'])
-        val_loss_epochs = np.add(val_loss_epochs, output['validation'][0])
-        val_accuracy = np.add(val_accuracy, output['validation'][1])
+        train_loss_epochs.append(output['train'])
+        val_loss_epochs.append(output['validation'][0])
+        val_accuracy.append(output['validation'][1])
         test_loss += output['test'][0]
         test_accuracy += output['test'][1]
+
+    train_loss_epochs = np.array(train_loss_epochs)
+    train_loss_min = np.amin(train_loss_epochs, axis=1)
+    train_loss_max = np.amax(train_loss_epochs, axis=1)
+    val_loss_epochs = np.arrray(val_loss_epochs)
+    val_loss_min = np.amin(val_loss_epochs, axis=1)
+    val_loss_max = np.amax(val_loss_epochs, axis=1)
+    val_accuracy = np.array(val_accuracy)
 
     # average the values over the folds
     train_loss_epochs = train_loss_epochs / nr_folds
@@ -69,13 +77,18 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
     val_accuracy = val_accuracy / nr_folds
     test_loss = test_loss / nr_folds
     test_accuracy = test_accuracy / nr_folds
+
     result = {
         'train_loss': list(train_loss_epochs),
+        'train_loss_min': list(train_loss_min),
+        'train_loss_max': list(train_loss_max),
         'val_loss': list(val_loss_epochs),
-        'val_accuracy': list(val_accuracy),
+        'val_loss_min': list(val_loss_min),
+        'val_loss_max': list(val_loss_max),
         'test_loss': test_loss,
         'test_accuracy': test_accuracy
     }
+
     return result
 
 
