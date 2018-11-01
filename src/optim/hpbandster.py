@@ -1,6 +1,5 @@
 import os
 import pickle
-import math
 import numpy as np
 
 from hpbandster.optimizers import BOHB
@@ -104,6 +103,8 @@ class Slave(Worker):
             )
 
             val_loss_epochs = output['validation'][0]
+            if isinstance(val_loss_epochs, np.ndarray):
+                val_loss_epochs = list(val_loss_epochs)
             val_accuracy = output['validation'][1]
             train_loss_epochs = output['train']
             test_loss = output['test'][0]
@@ -111,21 +112,26 @@ class Slave(Worker):
             output = {
                 'test_loss': test_loss,
                 'test_accuracy': test_accuracy,
-                'val_loss': list(val_loss_epochs),
+                'val_loss': val_loss_epochs,
                 'train_loss': list(train_loss_epochs)
             }
 
         if configuration.predictive_measure == 'loss':
+
             val_loss = output["val_loss"]
-            if math.isinf(val_loss[-1]):
-                result_measure = np.NaN
-            else:
+            # check if it is a list
+            if isinstance(val_loss, list):
                 result_measure = val_loss[-1]
+            else:
+                result_measure = val_loss
         elif configuration.predictive_measure == 'error_rate':
-            success_rate_val = val_accuracy
-            last_success_rate = success_rate_val[-1]
+
+            if isinstance(val_accuracy, list):
+                success_rate = val_accuracy[-1]
+            else:
+                success_rate = val_accuracy
             # it is in % so dividing by 100
-            result_measure = 1 - (last_success_rate / 100)
+            result_measure = 1 - (success_rate / 100)
 
         return ({
             'loss': result_measure,
