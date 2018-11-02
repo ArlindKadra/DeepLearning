@@ -1,5 +1,4 @@
 import numpy as np
-from sklearn.model_selection import train_test_split
 
 
 def feature_normalization(x, mean, std, categorical=None):
@@ -30,6 +29,7 @@ def feature_normalization(x, mean, std, categorical=None):
 
     return x
 
+
 def calculate_stat(x):
 
     mean = np.mean(x, axis=0)
@@ -41,23 +41,16 @@ def calculate_stat(x):
 def determine_input_sets(nr_examples):
 
     # Generate list with example indexes
-    slice = int(1/10 * nr_examples)
+    index_slice = int(1/10 * nr_examples)
     indices = np.arange(0, nr_examples)
     np.random.seed(11)
     shuffled_indices = np.random.permutation(indices)
     # determine the indices for each set
-    test = shuffled_indices[0:slice]
-    validation = shuffled_indices[slice + 1:(2 * slice) + 1]
-    train = shuffled_indices[(2 * slice) + 1:]
+    test = shuffled_indices[0:index_slice]
+    validation = shuffled_indices[index_slice + 1:(2 * index_slice) + 1]
+    train = shuffled_indices[(2 * index_slice) + 1:]
 
-    return (train, validation, test)
-
-
-def separate_input_sets(x, y):
-
-
-
-    return examples, labels
+    return train, validation, test
 
 
 def contains_nan(x):
@@ -76,4 +69,3 @@ def contains_nan(x):
         return True
     else:
         return False
-
