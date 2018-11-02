@@ -51,7 +51,7 @@ def main():
     logger = logging.getLogger(__name__)
 
     # TODO put verbose into configuration file
-    verbose = False
+    verbose = True
 
     # In MOAB, the run_id also has the array_id. This
     # conflicts with the way BOHB stores the nameserver

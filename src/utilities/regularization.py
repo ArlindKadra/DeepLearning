@@ -6,7 +6,8 @@ import numpy as np
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
 
-import models.fcresnet
+import openml_experiment
+import config as configuration
 
 
 def cross_validation(nr_epochs, x, y, config, nr_folds=10):
@@ -43,7 +44,14 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
         # calculate the refined train fold size
         refined_train_indices = train_indices[val_fold_size + 1:]
         set_indices = (refined_train_indices, val_indices, test_indices)
-        output = models.fcresnet.train(config, nr_epochs, x, y, set_indices)
+        output = openml_experiment.train(
+            config, 
+            configuration.network_type,
+            nr_epochs, 
+            x, 
+            y, 
+            set_indices
+        )
 
         # check last element if it is not inf
         # otherwise there is no point in running
@@ -66,25 +74,25 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
     train_loss_epochs = np.array(train_loss_epochs)
     train_loss_min = np.amin(train_loss_epochs, axis=1)
     train_loss_max = np.amax(train_loss_epochs, axis=1)
-    val_loss_epochs = np.arrray(val_loss_epochs)
+    val_loss_epochs = np.array(val_loss_epochs)
     val_loss_min = np.amin(val_loss_epochs, axis=1)
     val_loss_max = np.amax(val_loss_epochs, axis=1)
     val_accuracy = np.array(val_accuracy)
+    train_loss_epochs = np.mean(train_loss_epochs, axis=0)
+    val_loss_epochs = np.mean(val_loss_epochs, axis=0)
+    val_accuracy = np.mean(val_accuracy, axis=0)
 
     # average the values over the folds
-    train_loss_epochs = train_loss_epochs / nr_folds
-    val_loss_epochs = val_loss_epochs / nr_folds
-    val_accuracy = val_accuracy / nr_folds
     test_loss = test_loss / nr_folds
     test_accuracy = test_accuracy / nr_folds
 
     result = {
-        'train_loss': list(train_loss_epochs),
-        'train_loss_min': list(train_loss_min),
-        'train_loss_max': list(train_loss_max),
-        'val_loss': list(val_loss_epochs),
-        'val_loss_min': list(val_loss_min),
-        'val_loss_max': list(val_loss_max),
+        'train_loss': train_loss_epochs.tolist(),
+        'train_loss_min': train_loss_min.tolist(),
+        'train_loss_max': train_loss_max.tolist(),
+        'val_loss': val_loss_epochs.tolist(),
+        'val_loss_min': val_loss_min.tolist(),
+        'val_loss_max': val_loss_max.tolist(),
         'test_loss': test_loss,
         'test_accuracy': test_accuracy
     }
