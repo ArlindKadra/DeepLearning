@@ -17,11 +17,10 @@ def get_fcresnet_config(max_num_layers=2, max_num_res_blocks=14):
     cs = ConfigSpace.ConfigurationSpace()
 
     # Architecture parameters
-    num_layers = ConfigSpace.UniformIntegerHyperparameter(
+    num_layers = ConfigSpace.Constant(
         "num_layers",
-        lower=1,
-        upper=max_num_layers,
-        default_value=2)
+        2
+    )
     num_res_blocks = ConfigSpace.UniformIntegerHyperparameter(
         "num_res_blocks",
         lower=1,
@@ -122,7 +121,7 @@ def get_fcresnet_config(max_num_layers=2, max_num_res_blocks=14):
 
     # it is the upper bound of the nr of layers,
     # since the configuration will actually be sampled.
-    for i in range(1, max_num_layers + 1):
+    for i in range(1, 3):
 
         n_units = ConfigSpace.UniformIntegerHyperparameter(
             "num_units_%d" % i,
@@ -132,20 +131,6 @@ def get_fcresnet_config(max_num_layers=2, max_num_res_blocks=14):
             log=True
         )
         cs.add_hyperparameter(n_units)
-        cs.add_condition(
-            ConfigSpace.OrConjunction(
-                ConfigSpace.GreaterThanCondition(
-                    n_units,
-                    num_layers,
-                    i
-                ),
-                ConfigSpace.EqualsCondition(
-                    n_units,
-                    num_layers,
-                    i
-                )
-            )
-        )
 
     activate_dropout = cs.add_hyperparameter(
         ConfigSpace.CategoricalHyperparameter(

@@ -82,9 +82,8 @@ def best_conf_val_loss(working_dir):
     runs = result.get_runs_by_id(run_id)
     best_run = runs[-1]
     info = best_run.info
-    budget = best_run.budget
+    budget = int(best_run.budget)
     epochs = [x for x in range(1, budget + 1)]
-    # budget = best_run.budget
     validation_curve = info['val_loss']
     train_curve = info['train_loss']
     ax = plt.subplot(111)
@@ -186,3 +185,4 @@ def plot_rank_correlations(working_dir):
             'rank_correlations.png'),
             bbox_inches='tight')
         plt.close(fig)
+
