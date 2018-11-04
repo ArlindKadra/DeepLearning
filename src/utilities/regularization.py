@@ -75,11 +75,11 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
         test_accuracy += output['test'][1]
 
     train_loss_epochs = np.array(train_loss_epochs)
-    train_loss_min = np.amin(train_loss_epochs, axis=1)
-    train_loss_max = np.amax(train_loss_epochs, axis=1)
+    train_loss_min = np.amin(train_loss_epochs, axis=0)
+    train_loss_max = np.amax(train_loss_epochs, axis=0)
     val_loss_epochs = np.array(val_loss_epochs)
-    val_loss_min = np.amin(val_loss_epochs, axis=1)
-    val_loss_max = np.amax(val_loss_epochs, axis=1)
+    val_loss_min = np.amin(val_loss_epochs, axis=0)
+    val_loss_max = np.amax(val_loss_epochs, axis=0)
     val_accuracy = np.array(val_accuracy)
     train_loss_epochs = np.mean(train_loss_epochs, axis=0)
     val_loss_epochs = np.mean(val_loss_epochs, axis=0)
