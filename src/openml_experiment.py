@@ -3,6 +3,7 @@ import os
 import argparse
 import logging
 import math
+import re
 
 import torch
 import torch.nn as nn
@@ -59,7 +60,7 @@ def main():
     if args.cluster_workload == 'slurm':
         run_id = args.run_id
     else:
-        run_id = args.run_id[:-3]
+        run_id = re.sub(r"\D+\d+(\d|\])*$", "", args.run_id)
 
     log.setup_logging(run_id + "_" + str(args.array_id), logging.DEBUG if verbose else logging.INFO)
     logger.info('DeepResNet Experiment started')
