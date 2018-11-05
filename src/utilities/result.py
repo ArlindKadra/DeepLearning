@@ -4,7 +4,7 @@ import json
 import xlsxwriter
 
 
-def create_results(working_dir):
+def create(working_dir):
 
     workbook = xlsxwriter.Workbook(os.path.join(working_dir, 'Thesis_experiment.xlsx'))
     worksheet = workbook.add_worksheet('Results')
