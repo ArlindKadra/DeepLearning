@@ -440,7 +440,7 @@ def get_fixed_fcresnet_config(num_layers_block=2, num_blocks=17):
     )
 
     # all layers have 64 units
-    for i in range(1, 3):
+    for i in range(1, num_layers_block + 1):
 
         n_units = ConfigSpace.Constant(
             "num_units_%d" % i,
@@ -456,7 +456,7 @@ def get_fixed_fcresnet_config(num_layers_block=2, num_blocks=17):
     )
 
     # add drop out for the number of residual blocks
-    for i in range(1, num_blocks):
+    for i in range(1, num_blocks + 1):
 
         dropout = ConfigSpace.UniformFloatHyperparameter(
             "dropout_%d" % i,
