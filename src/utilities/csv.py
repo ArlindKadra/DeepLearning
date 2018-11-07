@@ -9,7 +9,7 @@ def create_results(working_dir):
     workbook = xlsxwriter.Workbook(os.path.join(working_dir, 'Thesis_experiment.xlsx'))
     worksheet = workbook.add_worksheet('Results')
     highlight_format = workbook.add_format({'bold': True, 'font_color': 'red'})
-    networks = ['FcResNet', 'FcNet']
+    networks = ['fcresnet', 'fcnet']
     worksheet.write(0, 0, 'Task')
     # write network names in order
     for i in range(0, len(networks)):
@@ -59,4 +59,4 @@ def read_task_ids(working_dir):
 
     return numbers
 
-# create_results("give input")
+create_results("/home/fr/fr_fr/fr_ak547/experiments")

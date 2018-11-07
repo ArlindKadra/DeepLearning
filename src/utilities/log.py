@@ -54,3 +54,5 @@ def setup_logging(log_file, level=logging.INFO):
     fh = logging.FileHandler(log_file)
     fh.setFormatter(f)
     root.addHandler(fh)
+
+# prepare_openml100("/home/fr/fr_fr/fr_ak547/experiments")
