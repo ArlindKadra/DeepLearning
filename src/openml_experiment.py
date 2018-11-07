@@ -25,7 +25,7 @@ from models.fcnet import FcNet
 def main():
 
     parser = argparse.ArgumentParser(description='Fully connected residual network')
-    parser.add_argument('--num_workers', help='Number of hyperband workers.', default=4, type=int)
+    parser.add_argument('--num_workers', help='Number of hyperband workers.', default=1, type=int)
     parser.add_argument('--num_iterations', help='Number of hyperband iterations.', default=4, type=int)
     parser.add_argument('--run_id', help='unique id to identify the HPB run.', default='HPB_example_2', type=str)
     parser.add_argument('--array_id', help='SGE array id to tread one job array as a HPB run.', default=1, type=int)

@@ -11,7 +11,7 @@ class FcResNet(nn.Module):
         self.config = config
         # create the residual blocks
         self.layers = self._make_layer(self.config["num_res_blocks"], input_features)
-        self.fc_layer = nn.Linear(self.config["num_units_%i" % self.config["num_layers"]], int(nr_labels))
+        self.fc_layer = nn.Linear(self.config["num_units_%i_%i" % (self.config['num_super_blocks'], self.config["num_layers"])], int(nr_labels))
         self.softmax_layer = nn.Softmax(1)
 
         for m in self.modules():
@@ -30,16 +30,28 @@ class FcResNet(nn.Module):
 
     def _make_layer(self, num_res_blocks, input_features):
 
+        nr_super_blocks = self.config['num_super_blocks']
+        nr_res_blocks_in_superblock = int(num_res_blocks / nr_super_blocks)
         layer = list()
+
         layer.append(BasicBlock(input_features, self.config, 1))
-        for i in range(2, num_res_blocks + 1):
-            layer.append(BasicBlock(self.config["num_units_%i" % self.config["num_layers"]], self.config, i))
+        for i in range(2, nr_res_blocks_in_superblock + 1):
+            layer.append(BasicBlock(self.config["num_units_%i_%i" % (1, self.config["num_layers"])], self.config, 1))
+
+        if nr_super_blocks > 1:
+            for super_block in range(2, nr_super_blocks + 1):
+                layer.append(BasicBlock(self.config["num_units_%i_%i" % (super_block - 1, self.config["num_layers"])],
+                                        self.config, super_block))
+                for i in range(2, nr_res_blocks_in_superblock + 1):
+                    layer.append(BasicBlock(self.config["num_units_%i_%i" % (super_block, self.config["num_layers"])], self.config, super_block))
+
+
         return nn.Sequential(*layer)
 
 
 class PreActResPath(nn.Module):
 
-    def __init__(self, in_features, config, block_nr):
+    def __init__(self, in_features, config, super_block):
 
         super(PreActResPath, self).__init__()
         self.number_layers = config["num_layers"]
@@ -47,7 +59,7 @@ class PreActResPath(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.projection = None
         setattr(self, "b_norm_1", nn.BatchNorm1d(in_features))
-        setattr(self, "fc_1", nn.Linear(in_features, config["num_units_1"]))
+        setattr(self, "fc_1", nn.Linear(in_features, config["num_units_%d_1" % super_block]))
 
         # if 'dropout_1' in config:
         # setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_1']))
@@ -55,16 +67,13 @@ class PreActResPath(nn.Module):
         # adding dropout only in the case of a 2 layer res block and only once
         # TODO generalize
         if self.activate_dropout:
-            setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d' % block_nr]))
+            setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d_1' % super_block]))
 
         for i in range(2, self.number_layers + 1):
-            setattr(self, "b_norm_%d" % i, nn.BatchNorm1d(config["num_units_%d" % (i - 1)]))
-            setattr(self, "fc_%d" % i, nn.Linear(config["num_units_%d" % (i - 1)], config["num_units_%d" % i]))
+            setattr(self, "b_norm_%d" % i, nn.BatchNorm1d(config["num_units_%d_%d" % (super_block, (i - 1))]))
+            setattr(self, "fc_%d" % i, nn.Linear(config["num_units_%d_%d" % (super_block, (i - 1))], config["num_units_%d_%d" % (super_block, i)]))
             # if 'dropout_%d' % i in config:
             # setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
-
-        if in_features != config["num_units_%d" % self.number_layers]:
-            self.projection = nn.Linear(in_features, config["num_units_%d" % self.number_layers])
 
     def forward(self, x):
 
@@ -82,24 +91,24 @@ class PreActResPath(nn.Module):
 
 class BasicResPath(nn.Module):
 
-    def __init__(self, in_features, config, block_nr):
+    def __init__(self, in_features, config, super_block):
 
         super(BasicResPath, self).__init__()
         self.number_layers = config["num_layers"]
         self.relu = nn.ReLU(inplace=True)
         self.activate_dropout = True if config['activate_dropout'] == 'Yes' else False
         self.projection = None
-        setattr(self, "fc_1", nn.Linear(in_features, config["num_units_1"]))
-        setattr(self, "b_norm_1", nn.BatchNorm1d(config["num_units_1"]))
+        setattr(self, "fc_1", nn.Linear(in_features, config["num_units_%d_1" % super_block]))
+        setattr(self, "b_norm_1", nn.BatchNorm1d(config["num_units_%d_1" % super_block]))
 
         # adding dropout only in the case of a 2 layer res block and only once
         # TODO generalize
         if self.activate_dropout:
-            setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d' % block_nr]))
+            setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d_1' % super_block]))
 
         for i in range(2, self.number_layers + 1):
-            setattr(self, 'fc_%d' % i, nn.Linear(config["num_units_%d" % (i - 1)], config["num_units_%d" % i]))
-            setattr(self, 'b_norm_%d' % i, nn.BatchNorm1d(config["num_units_%d" % i]))
+            setattr(self, 'fc_%d' % i, nn.Linear(config["num_units_%d_%d" % (super_block, (i - 1))], config["num_units_%d_%d" % (super_block, i)]))
+            setattr(self, 'b_norm_%d' % i, nn.BatchNorm1d(config["num_units_%d_%d" % (super_block, i)]))
             # if 'dropout_%d' % i in config:
             # setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
 
@@ -121,7 +130,7 @@ class BasicResPath(nn.Module):
 
 class BasicBlock(nn.Module):
 
-    def __init__(self, in_features, config, block_nr):
+    def __init__(self, in_features, config, super_block_nr):
 
         super(BasicBlock, self).__init__()
 
@@ -143,15 +152,15 @@ class BasicBlock(nn.Module):
         if config['shake-shake'] == 'Yes':
 
             self.shake_shake = True
-            self.residual_path1 = res_path(in_features, config, block_nr)
-            self.residual_path2 = res_path(in_features, config, block_nr)
+            self.residual_path1 = res_path(in_features, config, super_block_nr)
+            self.residual_path2 = res_path(in_features, config, super_block_nr)
 
         else:
-            self.residual_path1 = res_path(in_features, config, block_nr)
+            self.residual_path1 = res_path(in_features, config, super_block_nr)
             self.shake_shake = False
 
-        if in_features != config["num_units_%d" % self.number_layers]:
-            self.projection = nn.Linear(in_features, config["num_units_%d" % self.number_layers])
+        if in_features != config["num_units_%d_%d" % (super_block_nr, self.number_layers)]:
+            self.projection = nn.Linear(in_features, config["num_units_%d_%d" % (super_block_nr, self.number_layers)])
         else:
             self.projection = None
 
