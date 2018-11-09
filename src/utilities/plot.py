@@ -31,21 +31,23 @@ def load_data(working_dir):
                 _ = result['info']
                 val_loss_epochs = _['val_loss']
                 test_loss = _['test_loss']
+                # append test set result for budget
+                if budget not in accuracies:
+                    accuracies[budget] = []
+                if not math.isinf(test_loss):
+                    accuracies[budget].append(test_loss)
+
+                # create dict for each budget
+                if budget not in val_losses:
+                    val_losses[budget] = {}
+                # for each budget add dicts with test loss as key and
+                # val loss over epochs
+                val_losses[budget][test_loss] = val_loss_epochs
             else:
-                raise ValueError("Empty Info field for the worker run")
-
-            # append test set result for budget
-            if budget not in accuracies:
-                accuracies[budget] = []
-            if not math.isinf(test_loss):
-                accuracies[budget].append(test_loss)
-
-            # create dict for each budget
-            if budget not in val_losses:
-                val_losses[budget] = {}
-            # for each budget add dicts with test loss as key and
-            # val loss over epochs
-            val_losses[budget][test_loss] = val_loss_epochs
+                # Sometimes the worker dies unexpectedly
+                # better to just pass here
+                # raise ValueError("Empty Info field for the worker run")
+                pass
 
         return accuracies, val_losses
 
@@ -180,9 +182,11 @@ def plot_rank_correlations(working_dir):
             cmap="YlGnBu"
         )
         ax.set_title("Rank correlation")
-        plt.savefig(os.path.join(
-            working_dir,
-            'rank_correlations.png'),
-            bbox_inches='tight')
+        plt.savefig(
+            os.path.join(
+                working_dir,
+                'rank_correlations.png'
+            ),
+            bbox_inches = 'tight'
+        )
         plt.close(fig)
-
