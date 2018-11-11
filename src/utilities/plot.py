@@ -99,7 +99,7 @@ def best_conf_val_loss(working_dir):
         min_val_curve = info['val_loss_min']
         max_val_curve = info['val_loss_max']
         plt.fill_between(epochs, min_train_curve, max_train_curve, color='#1b07fc', alpha=0.2)
-        plt.fill_between(epochs, min_val_curve, max_val_curve, '#f92418', alpha=0.2)
+        plt.fill_between(epochs, min_val_curve, max_val_curve, color='#f92418', alpha=0.2)
 
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Loss")

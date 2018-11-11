@@ -16,7 +16,7 @@ class CosineScheduler:
         self.restart = restart
         self.weight_decay = weight_decay
         self.nr_epochs = nr_epochs
-        self.anneal_max_epoch = int(1 / 3 * nr_epochs)
+        self.anneal_max_epoch = int(1 / 10 * nr_epochs)
         self.anneal_multiply = 2
 
         for group in optimizer.param_groups:
@@ -39,8 +39,12 @@ class CosineScheduler:
 
             if epoch == self.anneal_max_epoch:
                 decay = 1
-                self.anneal_max_epoch = self.anneal_max_epoch * \
+                if self.nr_epochs >= self.anneal_max_epoch * self.anneal_multiply:
+                    self.anneal_max_epoch = self.anneal_max_epoch * \
                                             self.anneal_multiply
+                    self.nr_epochs -= self.anneal_max_epoch
+                else:
+                    self.anneal_max_epoch = self.nr_epochs
             else:
                 decay = 0.5 * (1.0 + np.cos(
                     np.pi * (epoch / self.anneal_max_epoch)
