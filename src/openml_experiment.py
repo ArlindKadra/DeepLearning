@@ -25,9 +25,9 @@ from models.fcnet import FcNet
 def main():
 
     parser = argparse.ArgumentParser(description='Fully connected residual network')
-    parser.add_argument('--num_workers', help='Number of hyperband workers.', default=1, type=int)
-    parser.add_argument('--num_iterations', help='Number of hyperband iterations.', default=4, type=int)
-    parser.add_argument('--run_id', help='unique id to identify the HPB run.', default='HPB_example_2', type=str)
+    parser.add_argument('--num_workers', help='Number of BOHB workers.', default=4, type=int)
+    parser.add_argument('--num_iterations', help='Number of BOHB iterations.', default=4, type=int)
+    parser.add_argument('--run_id', help='unique id to identify the BOHB run.', default='BOHB_Autonet', type=str)
     parser.add_argument('--array_id', help='SGE array id to tread one job array as a HPB run.', default=1, type=int)
     parser.add_argument('--working_dir', help='working directory to store live data.', default='.', type=str)
     parser.add_argument('--nic_name', help='name of the Network Interface Card.', default='lo', type=str)
@@ -63,17 +63,31 @@ def main():
         run_id = re.sub(r"\D+\d+(\d|\])*$", "", args.run_id)
 
     log.setup_logging(run_id + "_" + str(args.array_id), logging.DEBUG if verbose else logging.INFO)
-    logger.info('DeepResNet Experiment started')
+    logger.info('Experiment started')
     model.Loader(args.task_id)
     working_dir = os.path.join(args.working_dir, 'task_%i' % model.get_task_id(), args.network_type)
     start_time = time.time()
-    optim.hpbandster.Master(args.num_workers, args.num_iterations, run_id, args.array_id, working_dir, args.nic_name, args.network_type)
+    optim.hpbandster.Master(
+        args.num_workers,
+        args.num_iterations,
+        run_id,
+        args.array_id,
+        working_dir,
+        args.nic_name,
+        args.network_type
+    )
     end_time = time.time()
     duration = (end_time - start_time) / 60
     
     if args.array_id == 1:
 
         log.general_info(working_dir, duration)
+        log.map_job_to_task(
+            working_dir,
+            run_id,
+            model.get_task_id(),
+            args.network_type
+        )
         plot.test_loss_over_budgets(working_dir)
         plot.best_conf_val_loss(working_dir)
         plot.plot_curves(working_dir)

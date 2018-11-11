@@ -22,7 +22,7 @@ class Master(object):
         if network == 'fcresnet':
             config_space = get_super_fcresnet_config()
         else:
-            config_space = get_fixed_fc_config()
+            config_space = get_fixed_fc_config(max_nr_layers=3)
 
         if array_id == 1:
 
