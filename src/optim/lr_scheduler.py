@@ -3,7 +3,7 @@ import numpy as np
 import math
 import logging
 
-class CosineScheduler:
+class CosineScheduler(object):
 
     def __init__(self, optimizer, nr_epochs,
                  weight_decay= False, restart=False):
@@ -18,6 +18,7 @@ class CosineScheduler:
         self.nr_epochs = nr_epochs
         self.anneal_max_epoch = int(1 / 10 * nr_epochs)
         self.anneal_multiply = 2
+        self.anneal_epoch = 0
 
         for group in optimizer.param_groups:
             group.setdefault('initial_lr', group['lr'])
@@ -28,16 +29,18 @@ class CosineScheduler:
     # Starting from epoch 0
     def step(self, epoch):
 
+        # TODO refactor the usage of epoch
         # the cosine annealing case
         if self.restart:
-            if epoch > self.anneal_max_epoch:
+            if self.anneal_epoch > self.anneal_max_epoch:
                 logger = logging.getLogger(__name__)
                 logger.error("Something went wrong, epochs "
                              "> max epochs in restart")
                 raise ValueError("Something went wrong, epochs "
                                  "> max epochs in restart")
 
-            if epoch == self.anneal_max_epoch:
+            if self.anneal_epoch == self.anneal_max_epoch:
+                self.anneal_epoch = 0
                 decay = 1
                 if self.nr_epochs >= self.anneal_max_epoch * self.anneal_multiply:
                     self.anneal_max_epoch = self.anneal_max_epoch * \
@@ -49,6 +52,7 @@ class CosineScheduler:
                 decay = 0.5 * (1.0 + np.cos(
                     np.pi * (epoch / self.anneal_max_epoch)
                 ))
+            self.anneal_epoch +=1
         # Cosine Decay
         else:
             decay = 0.5 * (1.0 + np.cos(
@@ -61,7 +65,7 @@ class CosineScheduler:
                 param_group['weight_decay'] = param_group['initial_weight_decay'] * decay
 
 
-class ExponentialScheduler:
+class ExponentialScheduler(object):
 
     def __init__(self, optimizer, weight_decay=False):
 
