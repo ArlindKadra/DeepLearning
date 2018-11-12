@@ -50,7 +50,7 @@ class CosineScheduler(object):
                     self.anneal_max_epoch = self.nr_epochs
             else:
                 decay = 0.5 * (1.0 + np.cos(
-                    np.pi * (epoch / self.anneal_max_epoch)
+                    np.pi * (self.anneal_epoch / self.anneal_max_epoch)
                 ))
             self.anneal_epoch +=1
         # Cosine Decay
