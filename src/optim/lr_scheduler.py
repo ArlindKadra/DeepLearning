@@ -3,10 +3,11 @@ import numpy as np
 import math
 import logging
 
+
 class CosineScheduler(object):
 
     def __init__(self, optimizer, nr_epochs,
-                 weight_decay= False, restart=False):
+                 weight_decay=False, restart=False):
 
         if not isinstance(optimizer, Optimizer):
             raise TypeError('{} is not an Optimizer'.format(
@@ -52,7 +53,7 @@ class CosineScheduler(object):
                 decay = 0.5 * (1.0 + np.cos(
                     np.pi * (self.anneal_epoch / self.anneal_max_epoch)
                 ))
-            self.anneal_epoch +=1
+            self.anneal_epoch += 1
         # Cosine Decay
         else:
             decay = 0.5 * (1.0 + np.cos(
