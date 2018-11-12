@@ -41,11 +41,11 @@ class CosineScheduler(object):
 
             if self.anneal_epoch == self.anneal_max_epoch:
                 self.anneal_epoch = 0
+                self.nr_epochs -= self.anneal_max_epoch
                 decay = 1
                 if self.nr_epochs >= self.anneal_max_epoch * self.anneal_multiply:
                     self.anneal_max_epoch = self.anneal_max_epoch * \
                                             self.anneal_multiply
-                    self.nr_epochs -= self.anneal_max_epoch
                 else:
                     self.anneal_max_epoch = self.nr_epochs
             else:
