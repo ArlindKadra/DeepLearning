@@ -16,7 +16,7 @@ class CosineScheduler(object):
         self.restart = restart
         self.weight_decay = weight_decay
         self.nr_epochs = nr_epochs
-        self.anneal_max_epoch = int(1 / 10 * nr_epochs)
+        self.anneal_max_epoch = math.ceil(1 / 10 * nr_epochs)
         self.anneal_multiply = 2
         self.anneal_epoch = 0
 
