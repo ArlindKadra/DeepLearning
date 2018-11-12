@@ -19,7 +19,7 @@ def prepare_openml100(working_dir):
 def map_job_to_task(working_dir, run_id, task_id, network):
 
     with open(os.path.join(working_dir, 'job_to_task_mapper.txt'), "a") as file:
-        file.write("%s, %d --> %d" % (network, run_id, task_id))
+        file.write("%s, %s --> %d" % (network, run_id, task_id))
 
 
 def general_info(working_dir, time):
