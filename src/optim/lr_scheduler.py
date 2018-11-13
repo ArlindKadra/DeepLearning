@@ -134,10 +134,13 @@ class ScheduledOptimizer(object):
         else:
             self.scheduler = None
 
-    def step(self, epoch):
+    def step_scheduler(self, epoch):
 
         if self.scheduler is not None:
             self.scheduler.step(epoch)
+
+
+    def step_optim(self):
         self.optimizer.step()
 
     def state_dict(self):

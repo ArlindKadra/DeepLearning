@@ -191,12 +191,17 @@ def train(config, network, num_epochs, x, y, set_indices):
                      ", Adam and AdamW")
         raise ValueError("Unexpected optimizer value")
 
+    fraction = False
+    if 'final_lr_fraction' in config:
+        fraction = True
+
+
     scheduled_optimizer = ScheduledOptimizer(
         optimizer,
         num_epochs,
         True if weight_decay != 0 else False,
         config['decay_type'],
-        config['final_lr_fraction']
+        config['final_lr_fraction'] if fraction else None
     )
     logger.info('FcResNet started training')
 
@@ -259,6 +264,7 @@ def train(config, network, num_epochs, x, y, set_indices):
             loss.backward()
             running_loss += loss.item()
             nr_batches += 1
+            scheduled_optimizer.step_optim()
 
         # Using validation data
         network.eval()
@@ -304,7 +310,7 @@ def train(config, network, num_epochs, x, y, set_indices):
             scheduled_optimizer.get_weight_decay()
         )
 
-        scheduled_optimizer.step(epoch)
+        scheduled_optimizer.step_scheduler(epoch)
 
     with torch.no_grad():
         correct = 0
