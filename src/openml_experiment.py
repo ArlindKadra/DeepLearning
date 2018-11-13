@@ -195,7 +195,8 @@ def train(config, network, num_epochs, x, y, set_indices):
         optimizer,
         num_epochs,
         True if weight_decay != 0 else False,
-        config['decay_type']
+        config['decay_type'],
+        config['final_lr_fraction']
     )
     logger.info('FcResNet started training')
 

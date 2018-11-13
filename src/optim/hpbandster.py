@@ -7,7 +7,7 @@ from hpbandster.core.worker import Worker
 import hpbandster.core.nameserver as hpns
 import hpbandster.core.result as hpres
 
-from utilities.search_space import get_fcresnet_config, get_fc_config, get_fixed_fcresnet_config, get_fixed_fc_config, get_super_fcresnet_config
+from utilities.search_space import get_fc_config, get_fixed_fcresnet_config, get_fixed_fc_config, get_super_fcresnet_config
 import openml_experiment
 import model
 import config as configuration

@@ -224,11 +224,12 @@ def get_fixed_fcresnet_config(
         activate_mixout
     )
 
-    mixout_alpha = ConfigSpace.UniformFloatHyperparameter('mixout_alpha',
-                                                          lower=0,
-                                                          upper=1,
-                                                          default_value=0.2
-                                                          )
+    mixout_alpha = ConfigSpace.UniformFloatHyperparameter(
+        'mixout_alpha',
+        lower=0,
+        upper=1,
+        default_value=0.2
+    )
     cs.add_hyperparameter(mixout)
     cs.add_hyperparameter(mixout_alpha)
     cs.add_condition(
@@ -494,16 +495,25 @@ def get_fc_config(max_nr_layers=28):
     return cs
 
 
-def get_fixed_fc_config(max_nr_layers=34):
+def get_fixed_fc_config(
+        max_nr_layers=34,
+        activate_dropout='No',
+        activate_weight_decay='No'
+):
 
     # Config
-    optimizers = ['SGDW', 'AdamW', 'SGD', 'Adam']
+    optimizers = [
+        'Adam',
+        'AdamW',
+        'SGD',
+        'SGDW'
+    ]
+
     decay_scheduler = [
         'cosine_annealing',
         'cosine_decay',
         'exponential_decay'
     ]
-    include_hyperparameter = ['Yes', 'No']
 
     cs = ConfigSpace.ConfigurationSpace()
 
@@ -536,6 +546,24 @@ def get_fixed_fc_config(max_nr_layers=34):
             upper=10e-1,
             default_value=10e-2,
             log=True
+        )
+    )
+
+    lr_fraction = ConfigSpace.UniformFloatHyperparameter(
+        "final_lr_fraction",
+        lower=1e-4,
+        upper=1.,
+        default_value=1e-2,
+        log=True
+    )
+
+    cs.add_hyperparameter(lr_fraction)
+    cs.add_condition(
+        ConfigSpace.EqualsCondition(
+            lr_fraction,
+            decay_type,
+            'exponential_decay'
+
         )
     )
 
@@ -572,22 +600,20 @@ def get_fixed_fc_config(max_nr_layers=34):
         upper=10e-3,
         default_value=10e-4
     )
-    activate_weight_decay = ConfigSpace.CategoricalHyperparameter(
+    weight_decay_activate = ConfigSpace.Constant(
         'activate_weight_decay',
-        include_hyperparameter
-    )
-    cs.add_hyperparameter(weight_decay)
-    cs.add_hyperparameter(activate_weight_decay)
-    cs.add_condition(
-        ConfigSpace.EqualsCondition(
-            weight_decay,
-            activate_weight_decay,
-            'Yes'
-        )
+        activate_weight_decay
     )
 
-    activate_dropout = ConfigSpace.CategoricalHyperparameter('activate_dropout', include_hyperparameter)
-    cs.add_hyperparameter(activate_dropout)
+    if activate_weight_decay == 'Yes':
+        cs.add_hyperparameter(weight_decay)
+    cs.add_hyperparameter(weight_decay_activate)
+
+    dropout = ConfigSpace.Constant(
+        'activate_dropout',
+        activate_dropout
+    )
+    cs.add_hyperparameter(dropout)
     # it is the upper bound of the nr of layers,
     # since the configuration will actually be sampled.
     for i in range(1, max_nr_layers + 1):
@@ -604,119 +630,9 @@ def get_fixed_fc_config(max_nr_layers=34):
             upper=0.7,
             default_value=0.5
         )
-        cs.add_hyperparameter(dropout)
-        cs.add_condition(
-            ConfigSpace.EqualsCondition(
-                dropout,
-                activate_dropout,
-                'Yes'
-            )
-        )
 
-    return cs
+        if activate_dropout == 'Yes':
+            cs.add_hyperparameter(dropout)
 
-
-def get_fixed_fc_config_no_reg(max_nr_layers=34):
-
-    # Config
-    optimizers = [
-        'SGDW',
-        'AdamW',
-        'SGD',
-        'Adam'
-    ]
-
-    decay_scheduler = [
-        'cosine_annealing',
-        'cosine_decay',
-        'exponential_decay'
-    ]
-
-    cs = ConfigSpace.ConfigurationSpace()
-
-    # Architecture parameters
-    num_layers = ConfigSpace.Constant(
-        "num_layers",
-        max_nr_layers
-    )
-
-    cs.add_hyperparameter(num_layers)
-
-    cs.add_hyperparameter(
-        ConfigSpace.UniformIntegerHyperparameter(
-            "batch_size",
-            lower=8,
-            upper=256,
-            default_value=16,
-            log=True
-        )
-    )
-
-    # Regularition parameters
-    decay_type = ConfigSpace.CategoricalHyperparameter(
-        'decay_type',
-        decay_scheduler
-    )
-    cs.add_hyperparameter(decay_type)
-
-    cs.add_hyperparameter(
-        ConfigSpace.UniformFloatHyperparameter(
-            "learning_rate",
-            lower=10e-4,
-            upper=10e-1,
-            default_value=10e-2,
-            log=True
-        )
-    )
-
-    optimizer = ConfigSpace.CategoricalHyperparameter(
-        'optimizer',
-        optimizers
-    )
-
-    momentum = ConfigSpace.UniformFloatHyperparameter(
-        "momentum",
-        lower=0.0,
-        upper=0.9,
-        default_value=0.9
-    )
-    cs.add_hyperparameter(optimizer)
-    cs.add_hyperparameter(momentum)
-
-    cs.add_condition(
-        ConfigSpace.OrConjunction(
-            ConfigSpace.EqualsCondition(
-                momentum,
-                optimizer,
-                'SGDW'
-            ),
-            ConfigSpace.EqualsCondition(
-                momentum,
-                optimizer,
-                'SGD'
-            )
-        )
-    )
-
-    activate_weight_decay = ConfigSpace.Constant(
-        'activate_weight_decay',
-        'No'
-    )
-    cs.add_hyperparameter(activate_weight_decay)
-
-    activate_dropout = ConfigSpace.Constant(
-        'activate_dropout',
-        'No'
-    )
-    cs.add_hyperparameter(activate_dropout)
-    # it is the upper bound of the nr of layers,
-    # since the configuration will actually be sampled.
-    for i in range(1, max_nr_layers + 1):
-
-        n_units = ConfigSpace.Constant(
-            "num_units_%d" % i,
-            64
-        )
-        cs.add_hyperparameter(n_units)
 
     return cs

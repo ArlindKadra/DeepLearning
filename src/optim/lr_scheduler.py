@@ -68,7 +68,7 @@ class CosineScheduler(object):
 
 class ExponentialScheduler(object):
 
-    def __init__(self, optimizer, weight_decay=False):
+    def __init__(self, optimizer, nr_epochs, final_fraction, weight_decay=False):
 
         if not isinstance(optimizer, Optimizer):
             raise TypeError('{} is not an Optimizer'.format(
@@ -76,7 +76,7 @@ class ExponentialScheduler(object):
 
         self.optimizer = optimizer
         self.weight_decay = weight_decay
-        self.gamma = math.e
+        self.beta = nr_epochs / -np.log(final_fraction)
 
         for group in optimizer.param_groups:
             group.setdefault('initial_lr', group['lr'])
@@ -86,7 +86,7 @@ class ExponentialScheduler(object):
     # Starting from epoch 0
     def step(self, epoch):
 
-        decay = self.gamma ** (-epoch)
+        decay = np.exp(-epoch / self.beta)
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = param_group['initial_lr'] * decay
             if self.weight_decay:
@@ -95,7 +95,13 @@ class ExponentialScheduler(object):
 
 class ScheduledOptimizer(object):
 
-    def __init__(self, optimizer, nr_epochs, weight_decay, scheduler=None):
+    def __init__(self,
+                 optimizer,
+                 nr_epochs,
+                 weight_decay,
+                 scheduler=None,
+                 final_fraction=0.1
+                 ):
 
         self.optimizer = optimizer
         if scheduler is not None:
@@ -116,6 +122,8 @@ class ScheduledOptimizer(object):
             elif scheduler == 'exponential_decay':
                 self.scheduler = ExponentialScheduler(
                     optimizer,
+                    nr_epochs,
+                    final_fraction,
                     weight_decay=weight_decay
                 )
             else:
