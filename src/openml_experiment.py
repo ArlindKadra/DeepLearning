@@ -66,6 +66,16 @@ def main():
     logger.info('Experiment started')
     model.Loader(args.task_id)
     working_dir = os.path.join(args.working_dir, 'task_%i' % model.get_task_id(), args.network_type)
+    # Log to disk, network type,
+    # task id to run id
+    # in case of failure
+    if args.array_id == 1:
+        log.map_job_to_task(
+            working_dir,
+            run_id,
+            model.get_task_id(),
+            args.network_type
+    )
     start_time = time.time()
     optim.hpbandster.Master(
         args.num_workers,
@@ -82,12 +92,6 @@ def main():
     if args.array_id == 1:
 
         log.general_info(working_dir, duration)
-        log.map_job_to_task(
-            working_dir,
-            run_id,
-            model.get_task_id(),
-            args.network_type
-        )
         plot.test_loss_over_budgets(working_dir)
         plot.best_conf_val_loss(working_dir)
         plot.plot_curves(working_dir)
