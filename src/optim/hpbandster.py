@@ -7,7 +7,14 @@ from hpbandster.core.worker import Worker
 import hpbandster.core.nameserver as hpns
 import hpbandster.core.result as hpres
 
-from utilities.search_space import get_fc_config, get_fixed_fcresnet_config, get_fixed_fc_config, get_super_fcresnet_config
+from utilities.search_space import (
+    get_fc_config,
+    get_fixed_fcresnet_config,
+    get_fixed_fc_config,
+    get_fixed_conditional_fc_config,
+    get_super_fcresnet_config,
+    get_fixed_conditional_fcresnet_config
+)
 import openml_experiment
 import model
 import config as configuration
@@ -20,9 +27,9 @@ class Master(object):
     def __init__(self, num_workers, num_iterations, run_id, array_id, working_dir, nic_name, network):
 
         if network == 'fcresnet':
-            config_space = get_super_fcresnet_config()
+            config_space = get_fixed_conditional_fcresnet_config(num_res_blocks=2)
         else:
-            config_space = get_fixed_fc_config(max_nr_layers=3)
+            config_space = get_fixed_conditional_fc_config(max_nr_layers=4)
 
         if array_id == 1:
 
