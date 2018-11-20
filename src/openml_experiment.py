@@ -76,6 +76,7 @@ def main():
             model.get_task_id(),
             args.network_type
     )
+
     start_time = time.time()
     optim.hpbandster.Master(
         args.num_workers,

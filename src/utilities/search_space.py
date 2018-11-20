@@ -165,9 +165,11 @@ def get_super_fcresnet_config(layers_block=2, num_res_blocks=18, super_blocks=3)
 
 
 def get_fixed_fcresnet_config(
-        layers_block=2, num_res_blocks=17, super_blocks=1,
+        layers_block=2, num_res_blocks=17,
+        super_blocks=1, nr_units=64,
         activate_mixout='No', activate_shake_shake='No',
-        activate_weight_decay='No', activate_dropout='No'):
+        activate_weight_decay='No', activate_dropout='No'
+):
 
     # Config
     optimizers = ['Adam', 'AdamW', 'SGD', 'SGDW']
@@ -312,13 +314,21 @@ def get_fixed_fcresnet_config(
     if activate_weight_decay.value == 'Yes':
         cs.add_hyperparameter(weight_decay)
 
+    # nr units for input layer
+    cs.add_hyperparameter(
+        ConfigSpace.Constant(
+            'input_layer_units',
+            nr_units
+        )
+    )
+
     # it is the upper bound of the nr of layers,
     # since the configuration will actually be sampled.
     for i in range(1, super_blocks + 1):
         for j in range(1, layers_block + 1):
             n_units = ConfigSpace.Constant(
                 "num_units_%d_%d" % (i, j),
-                64
+                nr_units
             )
             cs.add_hyperparameter(n_units)
 
@@ -524,6 +534,14 @@ def get_fixed_conditional_fcresnet_config(
         )
     )
 
+    # nr units for input layer
+    cs.add_hyperparameter(
+        ConfigSpace.Constant(
+            'input_layer_units',
+            nr_units
+        )
+    )
+
     # it is the upper bound of the nr of layers,
     # since the configuration will actually be sampled.
     for i in range(1, super_blocks + 1):
@@ -538,7 +556,8 @@ def get_fixed_conditional_fcresnet_config(
             'activate_dropout',
             include_hyperparameter
     )
-
+    cs.add_hyperparameter(activate_dropout)
+    
     # get dropout value for super_block
     # the same value will be used for
     # residual blocks in the super_blocks

@@ -26,20 +26,19 @@ class TestFcResNet(unittest.TestCase):
         total_params = sum(p.numel() for
                            p in network.parameters() if p.requires_grad)
 
-        # number of weights from first layer to input
+        # number of weights from input layer
         weights = self.x.shape[1] * 64
-        # fixing dimensions for first skip connection
-        weights += self.x.shape[1] * 64
+        # number of biases input layer
+        weights += 64
         # number of weights between remaining layers
-        weights += 64 * 64 * 3
+        weights += 64 * 64 * 4
         # number of weights between output layer and last layer
         weights += 64 * 2
         # number of biases - 4 layers + output layer
-        # + linear layer to fix dimensions
-        weights += 64 * 5 + 2
+        weights += 64 * 4 + 2
         # batch norm for the first resblock
-        # since it is applied to the input
-        weights += self.x.shape[1] * 2
+        # since it is applied to the input layer
+        weights += 64 * 2
         # batch norm weights for the 3 layers
         weights += 64 * 3 * 2
 
@@ -64,13 +63,14 @@ class TestFcResNet(unittest.TestCase):
         total_params = sum(p.numel() for
                            p in network.parameters() if p.requires_grad)
 
-        # number of weights from first layer to input
-        weights = self.x.shape[1] * 64
+        # number of units from input layer to
+        # first res block layer
+        weights = 64 * 64
         # number of weights between remaining layers
         weights += 64 * 64 * 3
         # batch norm for the first resblock
-        # since it is applied to the input
-        weights += self.x.shape[1] * 2
+        # since it is applied to the input layer
+        weights += 64 * 2
         # batch norm weights for the 3 layers
         weights += 64 * 3 * 2
         # number of biases - 4 layers
@@ -78,9 +78,9 @@ class TestFcResNet(unittest.TestCase):
         # because of shake shake we have double
         # of the above
         weights *= 2
-        # fixing dimensions for first skip connection
-        weights += self.x.shape[1] * 64
-        # number of biases for fixing dimensions layer
+        # number of weights from input layer
+        weights = self.x.shape[1] * 64
+        # number of biases for input layer
         weights += 64
         # number of weights between output layer and last layer
         weights += 64 * 2

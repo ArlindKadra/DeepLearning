@@ -10,7 +10,8 @@ class FcResNet(nn.Module):
         super(FcResNet, self).__init__()
         self.config = config
         # create the residual blocks
-        self.layers = self._make_layer(self.config["num_res_blocks"], input_features)
+        self.input_layer = nn.Linear(input_features, self.config['input_layer_units'])
+        self.layers = self._make_layer(self.config["num_res_blocks"], self.config['input_layer_units'])
         self.fc_layer = nn.Linear(self.config["num_units_%i_%i" % (self.config['num_super_blocks'], self.config["num_layers"])], int(nr_labels))
         self.softmax_layer = nn.Softmax(1)
 
@@ -23,7 +24,8 @@ class FcResNet(nn.Module):
 
     def forward(self, x):
 
-        out = self.layers(x)
+        out = self.input_layer(x)
+        out = self.layers(out)
         out = self.fc_layer(out)
         out = self.softmax_layer(out)
         return out
