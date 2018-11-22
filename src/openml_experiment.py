@@ -41,12 +41,42 @@ def main():
         default='loss',
         type=str
     )
-    parser.add_argument('--task_id', help='Task id so that the dataset can be retrieved from OpenML.',
-                        default=3, type=int)
+    parser.add_argument(
+        '--task_id',
+        help='Task id so that the dataset can be retrieved from OpenML.',
+        default=3,
+        type=int
+    )
+    parser.add_argument(
+        '--fidelity',
+        help='Fidelity to be used by BOHB.',
+        default='epochs',
+        type=str
+    )
+    parser.add_argument(
+        '--max_budget',
+        help='Max budget for BOHB',
+        default=243,
+        type=int
+    )
+    parser.add_argument(
+        '--min_budget',
+        help='Min budget for BOHB',
+        default=9,
+        type=int
+    )
+    parser.add_argument(
+        '--eta',
+        help='ETA for BOHB, fraction of configurations that '
+             'pass in the next round of succesive halving ',
+        default=3,
+        type=int
+    )
 
     args = parser.parse_args()
     config.predictive_measure = args.predictive_measure
     config.network_type = args.network_type
+    config.fidelity = args.fidelity
     config.cross_validation = args.cross_validation
     # initialize logging
     logger = logging.getLogger(__name__)
@@ -85,7 +115,10 @@ def main():
         args.array_id,
         working_dir,
         args.nic_name,
-        args.network_type
+        args.network_type,
+        args.min_budget,
+        args.max_budget,
+        args.eta
     )
     end_time = time.time()
     duration = (end_time - start_time) / 60

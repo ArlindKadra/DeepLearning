@@ -24,7 +24,19 @@ import utilities.regularization
 
 class Master(object):
 
-    def __init__(self, num_workers, num_iterations, run_id, array_id, working_dir, nic_name, network):
+    def __init__(
+            self,
+            num_workers,
+            num_iterations,
+            run_id,
+            array_id,
+            working_dir,
+            nic_name,
+            network,
+            min_budget,
+            max_budget,
+            eta
+    ):
 
         if network == 'fcresnet':
             config_space = get_fixed_conditional_fcresnet_config(num_res_blocks=2)
@@ -45,20 +57,25 @@ class Master(object):
             worker = Slave(nameserver=ns_host, nameserver_port=ns_port, run_id=run_id)
             worker.run(background=True)
 
-            hb = BOHB(configspace=config_space,
-                      run_id=run_id,
-                      eta=3, min_budget=27, max_budget=729,
-                      host=ns_host,
-                      nameserver=ns_host,
-                      result_logger=result_logger,
-                      nameserver_port=ns_port,
-                      ping_interval=3600
-                      )
+            hb = BOHB(
+                configspace=config_space,
+                run_id=run_id,
+                eta=eta,
+                min_budget=min_budget,
+                max_budget=max_budget,
+                host=ns_host,
+                nameserver=ns_host,
+                result_logger=result_logger,
+                nameserver_port=ns_port,
+                ping_interval=3600
+            )
 
-            res = hb.run(n_iterations=num_iterations,
-                         min_n_workers=num_workers
-                         # BOHB can wait until a minimum number of workers is online before starting
-                         )
+            # BOHB can wait until a minimum number of workers
+            # is online before starting
+            res = hb.run(
+                n_iterations=num_iterations,
+                min_n_workers=num_workers
+            )
 
             # pickle result here for later analysis
             with open(os.path.join(working_dir, 'results.pkl'), 'wb') as fh:
@@ -95,14 +112,26 @@ class Slave(Worker):
             k_fold_validation: Flag to control cross validation.
         """
         x, y, _ = model.get_dataset()
+
+        # Standart number of epochs
+        epochs = 200
+        # Standart number of epochs
+        folds = 10
+        # the budget is the number of epochs
+        if configuration.fidelity == 'epochs':
+            epochs = budget
+        # the budget is the number of folds
+        elif configuration.fidelity == 'folds':
+            folds = budget
+
         if configuration.cross_validation:
-            output = utilities.regularization.cross_validation(int(budget), x, y, config)
+            output = utilities.regularization.cross_validation(epochs, x, y, config, nr_folds=folds)
         else:
             set_indices = utilities.data.determine_input_sets(len(x))
             output = openml_experiment.train(
                 config,
                 configuration.network_type,
-                int(budget),
+                int(epochs),
                 x,
                 y,
                 set_indices
