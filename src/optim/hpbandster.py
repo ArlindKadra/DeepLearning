@@ -29,7 +29,7 @@ class Master(object):
         if network == 'fcresnet':
             config_space = get_fixed_conditional_fcresnet_config(num_res_blocks=2)
         else:
-            config_space = get_fixed_conditional_fc_config(max_nr_layers=4)
+            config_space = get_fixed_conditional_fc_config(max_nr_layers=5)
 
         if array_id == 1:
 
@@ -47,7 +47,7 @@ class Master(object):
 
             hb = BOHB(configspace=config_space,
                       run_id=run_id,
-                      eta=3, min_budget=9, max_budget=243,
+                      eta=3, min_budget=27, max_budget=729,
                       host=ns_host,
                       nameserver=ns_host,
                       result_logger=result_logger,
