@@ -71,7 +71,7 @@ def main():
     # in case of failure
     if args.array_id == 1:
         log.map_job_to_task(
-            working_dir,
+            args.working_dir,
             run_id,
             model.get_task_id(),
             args.network_type
