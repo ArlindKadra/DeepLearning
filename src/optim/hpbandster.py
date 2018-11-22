@@ -148,7 +148,8 @@ class Slave(Worker):
                 'test_loss': test_loss,
                 'test_accuracy': test_accuracy,
                 'val_loss': val_loss_epochs,
-                'train_loss': list(train_loss_epochs)
+                'train_loss': list(train_loss_epochs),
+                'nr_epochs': epochs
             }
 
         if configuration.predictive_measure == 'loss':

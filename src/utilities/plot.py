@@ -63,7 +63,9 @@ def test_loss_over_budgets(working_dir):
     for budget, values in accuracies.items():
         data_plot.append(values)
     plt.boxplot(data_plot)
-    ax.set_xticklabels(['9', '27', '81', '243'])
+
+    budgets = accuracies.keys()
+    ax.set_xticklabels(budgets.sort())
     ax.get_xaxis().tick_bottom()
     ax.get_yaxis().tick_left()
     ax.set_xlabel("Budget (epochs)")
@@ -84,7 +86,7 @@ def best_conf_val_loss(working_dir):
     runs = result.get_runs_by_id(run_id)
     best_run = runs[-1]
     info = best_run.info
-    budget = int(best_run.budget)
+    budget = int(info['nr_epochs'])
     epochs = [x for x in range(1, budget + 1)]
     validation_curve = info['val_loss']
     train_curve = info['train_loss']
@@ -156,6 +158,8 @@ def plot_rank_correlations(working_dir):
     fig = plt.figure(4)  # an empty figure with no axes
     runs = result.get_learning_curves()
 
+    iterations = set([len(value[0]) for value in runs.values()])
+    max_iteration = max(iterations)
     # for each run a dict of config ids as keys and
     # a list of lists. The inner list contains tuples
     # with budget and loss
@@ -163,7 +167,7 @@ def plot_rank_correlations(working_dir):
         # get the inner list
         configs = runs[conf_id][0]
         # this config was run for all budgets
-        if len(configs) == 4:
+        if len(configs) == max_iteration:
             for config in configs:
                 if config[0] not in values:
                     values[config[0]] = []
