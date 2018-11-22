@@ -119,10 +119,10 @@ class Slave(Worker):
         folds = 10
         # the budget is the number of epochs
         if configuration.fidelity == 'epochs':
-            epochs = budget
+            epochs = int(budget)
         # the budget is the number of folds
         elif configuration.fidelity == 'folds':
-            folds = budget
+            folds = int(budget)
 
         if configuration.cross_validation:
             output = utilities.regularization.cross_validation(epochs, x, y, config, nr_folds=folds)
@@ -131,7 +131,7 @@ class Slave(Worker):
             output = openml_experiment.train(
                 config,
                 configuration.network_type,
-                int(epochs),
+                epochs,
                 x,
                 y,
                 set_indices

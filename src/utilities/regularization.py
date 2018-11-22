@@ -42,7 +42,7 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
     for train_indices, test_indices in kf.split(x):
 
         # calculate the size of the validation fold
-        val_fold_size = int((1 / (nr_folds - 1)) * len(train_indices))
+        val_fold_size = int((1 / 10) * len(train_indices))
         val_indices = train_indices[0:val_fold_size]
         # calculate the refined train fold size
         refined_train_indices = train_indices[val_fold_size:]
