@@ -95,7 +95,6 @@ class Slave(Worker):
             k_fold_validation: Flag to control cross validation.
         """
         x, y, _ = model.get_dataset()
-
         if configuration.cross_validation:
             output = utilities.regularization.cross_validation(int(budget), x, y, config)
         else:

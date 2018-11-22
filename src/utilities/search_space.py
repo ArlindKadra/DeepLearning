@@ -365,6 +365,12 @@ def get_fixed_conditional_fcresnet_config(
         nr_units=64
 ):
 
+    shake_config = [
+        'YYY',
+        'YNY',
+        'YYN',
+        'YNN'
+    ]
     # Config
     optimizers = [
         'Adam',
