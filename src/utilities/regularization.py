@@ -42,8 +42,8 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
     for train_indices, test_indices in kf.split(x):
 
         # calculate the size of the validation fold
-        val_fold_size = int((1 / (nr_folds - 1)) * len(train_indices))
-        val_indices  = train_indices[0:val_fold_size]
+        val_fold_size = int((1 / 10) * len(train_indices))
+        val_indices = train_indices[0:val_fold_size]
         # calculate the refined train fold size
         refined_train_indices = train_indices[val_fold_size:]
         set_indices = (refined_train_indices, val_indices, test_indices)
@@ -60,13 +60,14 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
         # otherwise there is no point in running
         # cross validation on a bad config
         if (output['validation'][0])[-1] is math.inf:
+
             return {
                 'train_loss': output['train'],
                 'val_loss': output['validation'][0],
                 'val_accuracy': output['validation'][1],
                 'test_loss': math.inf,
                 'test_accuracy': 0
-        }
+            }
 
         train_loss_epochs.append(output['train'])
         val_loss_epochs.append(output['validation'][0])
