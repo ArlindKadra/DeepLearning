@@ -67,7 +67,3 @@ class TestFcNet(unittest.TestCase):
         # batch norm weights
         weights += 64 * 3 * 2
         self.assertEqual(weights, total_params)
-
-
-if __name__ == '__main__':
-    unittest.main()

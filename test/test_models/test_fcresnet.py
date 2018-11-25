@@ -88,7 +88,3 @@ class TestFcResNet(unittest.TestCase):
         weights += 2
 
         self.assertEqual(weights, total_params)
-
-
-if __name__ == '__main__':
-    unittest.main()

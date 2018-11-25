@@ -47,8 +47,8 @@ def determine_input_sets(nr_examples):
     shuffled_indices = np.random.permutation(indices)
     # determine the indices for each set
     test = shuffled_indices[0:index_slice]
-    validation = shuffled_indices[index_slice + 1:(2 * index_slice) + 1]
-    train = shuffled_indices[(2 * index_slice) + 1:]
+    validation = shuffled_indices[index_slice:2 * index_slice]
+    train = shuffled_indices[2 * index_slice:]
 
     return train, validation, test
 
