@@ -64,8 +64,9 @@ def test_loss_over_budgets(working_dir):
         data_plot.append(values)
     plt.boxplot(data_plot)
 
-    budgets = accuracies.keys()
-    ax.set_xticklabels(budgets.sort())
+    budgets = list(accuracies.keys())
+    budgets.sort()
+    ax.set_xticklabels(budgets)
     ax.get_xaxis().tick_bottom()
     ax.get_yaxis().tick_left()
     ax.set_xlabel("Budget (epochs)")
