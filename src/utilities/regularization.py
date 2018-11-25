@@ -98,7 +98,8 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
         'val_loss_min': val_loss_min.tolist(),
         'val_loss_max': val_loss_max.tolist(),
         'test_loss': test_loss,
-        'test_accuracy': test_accuracy
+        'test_accuracy': test_accuracy,
+        'nr_epochs': output['nr_epochs']
     }
 
     return result

@@ -367,7 +367,8 @@ def train(config, network, num_epochs, x, y, set_indices):
     output_information = {
         'test': (test_loss.item(), accuracy),
         'validation': (network_val_loss, network_val_accuracy),
-        'train': network_train_loss
+        'train': network_train_loss,
+        'nr_epochs': num_epochs
     }
     return output_information
 
