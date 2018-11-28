@@ -20,8 +20,10 @@ class Loader(object):
         _task_id = task_id
         dataset = openml.tasks.get_task(_task_id).get_dataset()
 
-        x, y, categorical = dataset.get_data(target=dataset.default_target_attribute,
-                                             return_categorical_indicator=True)
+        x, y, categorical = dataset.get_data(
+            target=dataset.default_target_attribute,
+            return_categorical_indicator=True
+        )
 
         logger.info("Data from task id %d Loaded", _task_id)
 

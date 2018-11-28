@@ -114,7 +114,7 @@ class Slave(Worker):
         x, y, _ = model.get_dataset()
 
         # Standart number of epochs
-        epochs = 200
+        epochs = 243
         # Standart number of epochs
         folds = 10
         # the budget is the number of epochs

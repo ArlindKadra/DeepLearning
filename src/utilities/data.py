@@ -1,5 +1,5 @@
 import numpy as np
-
+from sklearn.utils.class_weight import compute_class_weight
 
 def feature_normalization(x, mean, std, categorical=None):
     """Do feature normalization on the input
@@ -28,6 +28,15 @@ def feature_normalization(x, mean, std, categorical=None):
                     x[row, column] = (x[row, column] - mean[column]) / std[column]
 
     return x
+
+
+def calculate_class_weights(y_train):
+
+    return compute_class_weight(
+        'balanced',
+        np.unique(y_train),
+        y_train
+    )
 
 
 def calculate_stat(x):

@@ -147,6 +147,7 @@ def train(config, network, num_epochs, x, y, set_indices):
     # calculate mean and std for train set
     x_train = x[train_indices]
     mean, std = data.calculate_stat(x_train)
+    class_weights = data.calculate_class_weights(y[train_indices])
     x = data.feature_normalization(x, mean, std, dataset_categorical)
 
     # Deal with categorical attributes
@@ -187,7 +188,7 @@ def train(config, network, num_epochs, x, y, set_indices):
                        p in network.parameters() if p.requires_grad)
     logger.info("Number of network parameters %d", total_params)
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
     weight_decay = 0
     if 'weight_decay' in config:
         weight_decay = config['weight_decay']
