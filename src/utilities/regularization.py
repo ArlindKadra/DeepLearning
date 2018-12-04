@@ -3,14 +3,21 @@ import math
 import torch
 from torch.autograd import Function
 import numpy as np
-from sklearn.model_selection import KFold
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold
 
 import openml_experiment
 import config as configuration
 
 
-def cross_validation(nr_epochs, x, y, config, nr_folds=10):
+def cross_validation(
+        nr_epochs,
+        x,
+        y,
+        config,
+        train_indices,
+        test_indices,
+        nr_folds=10
+):
     """Use cross validation to train the network.
 
     Args:
@@ -18,6 +25,9 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
         x: Input.
         y: Labels.
         config: ConfigSpace configuration
+        train_indices: Indices of the training set.
+        Includes training and validation set.
+        test_indices: Indices of the test set.
         nr_folds: Number of cross-validation folds.
 
     Returns:
@@ -32,21 +42,17 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
 
     # Shuffle data before, otherwise the results on some tasks were confusing.
     # Validation had similiar loss to the training data while test data had a very high one.
-    indices = np.arange(0, len(x))
-    np.random.seed(11)
-    shuffled_indices = np.random.permutation(indices)
+    # indices = np.arange(0, len(x))
+    # np.random.seed(11)
+    # shuffled_indices = np.random.permutation(indices)
 
-    kf = KFold(n_splits=nr_folds)
-    x = x[shuffled_indices]
-    y = y[shuffled_indices]
-    for train_indices, test_indices in kf.split(x):
+    skf = StratifiedKFold(n_splits=nr_folds)
+    x = x[train_indices]
+    y = y[train_indices]
+    for train_set, validation_set in skf.split(x, y):
 
         # calculate the size of the validation fold
-        val_fold_size = int((1 / 10) * len(train_indices))
-        val_indices = train_indices[0:val_fold_size]
-        # calculate the refined train fold size
-        refined_train_indices = train_indices[val_fold_size:]
-        set_indices = (refined_train_indices, val_indices, test_indices)
+        set_indices = (train_set, validation_set, test_indices)
         output = openml_experiment.train(
             config, 
             configuration.network_type,

@@ -1,5 +1,7 @@
 import numpy as np
 from sklearn.utils.class_weight import compute_class_weight
+from sklearn.model_selection import StratifiedKFold
+
 
 def feature_normalization(x, mean, std, categorical=None):
     """Do feature normalization on the input
@@ -60,6 +62,18 @@ def determine_input_sets(nr_examples):
     train = shuffled_indices[2 * index_slice:]
 
     return train, validation, test
+
+
+def determine_stratified_val_set(x_train, y_train, nr_folds=10):
+
+    skf = StratifiedKFold(n_splits=nr_folds)
+    train_indices = None
+    validation_indices = None
+    for train_set, validation_set in skf.split(x_train, y_train):
+        train_indices = train_set
+        validation_indices = validation_set
+        break
+    return train_indices, validation_indices
 
 
 def contains_nan(x):

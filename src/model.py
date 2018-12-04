@@ -2,28 +2,30 @@ from utilities import data
 import logging
 import openml
 
-
 _x = None
 _y = None
 _categorical = None
-_mean = None
-_std = None
 _task_id = None
+_train_indices = None
+_test_indices = None
 
 
 class Loader(object):
 
     def __init__(self, task_id=3):
 
-        global _x, _y, _categorical, _mean, _std, _task_id
+        global _x, _y, _categorical, _task_id, _train_indices, _test_indices
         logger = logging.getLogger(__name__)
         _task_id = task_id
-        dataset = openml.tasks.get_task(_task_id).get_dataset()
+        task = openml.tasks.get_task(_task_id)
+        dataset = task.get_dataset()
 
         x, y, categorical = dataset.get_data(
             target=dataset.default_target_attribute,
             return_categorical_indicator=True
         )
+
+        _train_indices, _test_indices = task.get_train_test_split_indices()
 
         logger.info("Data from task id %d Loaded", _task_id)
 
@@ -44,16 +46,11 @@ def get_dataset():
     return _x, _y, _categorical
 
 
-def get_mean():
-
-    return _mean
-
-
-def get_std():
-
-    return _std
-
-
 def get_task_id():
 
     return _task_id
+
+
+def get_split_indices():
+
+    return _train_indices, _test_indices

@@ -109,9 +109,9 @@ class Slave(Worker):
         Args:
             config: A hyperparameter configuration drawn from the ConfigSpace.
             budget: budget on which the training of the network will be limited.
-            k_fold_validation: Flag to control cross validation.
         """
         x, y, _ = model.get_dataset()
+        train_indices, test_indices = model.get_split_indices()
 
         # Standart number of epochs
         epochs = 243
@@ -125,9 +125,26 @@ class Slave(Worker):
             folds = int(budget)
 
         if configuration.cross_validation:
-            output = utilities.regularization.cross_validation(epochs, x, y, config, nr_folds=folds)
+            output = utilities.regularization.cross_validation(
+                epochs,
+                x,
+                y,
+                config,
+                train_indices,
+                test_indices,
+                nr_folds=folds
+            )
         else:
-            set_indices = utilities.data.determine_input_sets(len(x))
+            training_indices, validation_indices = \
+                utilities.data.determine_stratified_val_set(
+                    x[train_indices],
+                    y[train_indices]
+                )
+            set_indices = (
+                training_indices,
+                validation_indices,
+                test_indices
+            )
             output = openml_experiment.train(
                 config,
                 configuration.network_type,
