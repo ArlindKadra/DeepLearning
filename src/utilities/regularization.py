@@ -4,6 +4,9 @@ import torch
 from torch.autograd import Function
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import OneHotEncoder
+import prince
 
 import openml_experiment
 import config as configuration
@@ -181,3 +184,25 @@ def get_alpha_beta(batch_size, shake_config, is_cuda):
         beta = beta.cuda()
 
     return alpha, beta
+
+
+def feature_preprocessing(
+        feature_type,
+        nr_components,
+        x,
+        train_split,
+        train_indices
+):
+
+    if feature_type == 'numerical':
+        procedure = PCA
+    elif feature_type == 'categorical':
+        procedure = prince.MCA
+    else:
+        procedure = prince.FAMD
+
+    procedure = procedure(n_components=nr_components)
+    procedure = procedure.fit(train_split[train_indices])
+    x = procedure.transform(x)
+
+    return x

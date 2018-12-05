@@ -76,6 +76,19 @@ def determine_stratified_val_set(x_train, y_train, nr_folds=10):
     return train_indices, validation_indices
 
 
+def determine_feature_type(categorical):
+
+    if True in categorical:
+        if False in categorical:
+            feature_types = 'mixed'
+        else:
+            feature_types = 'categorical'
+    else:
+        feature_types = 'numerical'
+
+    return feature_types
+
+
 def contains_nan(x):
     """Validate the tensor.
 

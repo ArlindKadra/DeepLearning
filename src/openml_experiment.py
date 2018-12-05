@@ -25,7 +25,7 @@ from models.fcnet import FcNet
 def main():
 
     parser = argparse.ArgumentParser(description='Fully connected residual network')
-    parser.add_argument('--num_workers', help='Number of BOHB workers.', default=4, type=int)
+    parser.add_argument('--num_workers', help='Number of BOHB workers.', default=1, type=int)
     parser.add_argument('--num_iterations', help='Number of BOHB iterations.', default=4, type=int)
     parser.add_argument('--run_id', help='unique id to identify the BOHB run.', default='BOHB_Autonet', type=str)
     parser.add_argument('--array_id', help='SGE array id to tread one job array as a HPB run.', default=1, type=int)
@@ -143,31 +143,55 @@ def train(config, network, num_epochs, x, y, set_indices):
     train_indices = set_indices[0]
     val_indices = set_indices[1]
     test_indices = set_indices[2]
+    train_split, test_split_ = model.get_split_indices()
+    trainable_set = x[train_split]
+    labels_train_set = y[train_split]
+
+    # Feature preprocessing
+
+    if config['feature_preprocessing'] == 'Yes':
+
+        x = regularization.feature_preprocessing(
+            config['feature_type'],
+            config['pca_components'],
+            x,
+            trainable_set,
+            train_indices
+        )
+    trainable_set = x[train_split]
+    # Feature normalization
 
     # calculate mean and std for train set
-    x_train = x[train_indices]
-    mean, std = data.calculate_stat(x_train)
-    class_weights = data.calculate_class_weights(y[train_indices])
-    x = data.feature_normalization(x, mean, std, dataset_categorical)
+    mean, std = data.calculate_stat(trainable_set[train_indices])
 
-    # Deal with categorical attributes
-    if True in dataset_categorical:
+    if config['feature_preprocessing'] == 'Yes':
+        # since feature preprocessing was used
+        # the information regarding categorical
+        # data is not useful anymore.
+        x = data.feature_normalization(x, mean, std, categorical=None)
+    else:
+        x = data.feature_normalization(x, mean, std, dataset_categorical)
+        # Deal with categorical attributes
+        if True in dataset_categorical:
+            enc = OneHotEncoder(categorical_features=dataset_categorical, dtype=np.float32)
+            x = enc.fit_transform(x).todense()
 
-        enc = OneHotEncoder(categorical_features=dataset_categorical, dtype=np.float32)
-        x = enc.fit_transform(x).todense()
-
-    x_train = x[train_indices]
-    x_val = x[val_indices]
+    trainable_set = x[train_split]
+    labels_train_set = y[train_split]
+    x_train = trainable_set[train_indices]
+    x_val = trainable_set[val_indices]
     x_test = x[test_indices]
-    y_train = y[train_indices]
-    y_val = y[val_indices]
+    y_train = labels_train_set[train_indices]
+    y_val = labels_train_set[val_indices]
     y_test = y[test_indices]
 
     # Get the batch size
     batch_size = config["batch_size"]
 
-    device = torch.device("cuda"
-                          if torch.cuda.is_available() else "cpu")
+    device = torch.device(
+        "cuda"
+        if torch.cuda.is_available() else "cpu"
+    )
 
     if network == 'fcresnet':
         network = FcResNet(
@@ -187,6 +211,12 @@ def train(config, network, num_epochs, x, y, set_indices):
     total_params = sum(p.numel() for
                        p in network.parameters() if p.requires_grad)
     logger.info("Number of network parameters %d", total_params)
+
+    if config['class_weights'] == 'Yes':
+        class_weights = data.calculate_class_weights(labels_train_set[train_indices])
+        class_weights = torch.from_numpy(class_weights).float()
+    else:
+        class_weights = None
 
     criterion = nn.CrossEntropyLoss(weight=class_weights)
     weight_decay = 0

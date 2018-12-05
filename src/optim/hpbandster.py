@@ -7,6 +7,7 @@ from hpbandster.core.worker import Worker
 import hpbandster.core.nameserver as hpns
 import hpbandster.core.result as hpres
 
+from src.utilities.data import determine_feature_type
 from utilities.search_space import (
     get_fc_config,
     get_fixed_fcresnet_config,
@@ -38,10 +39,22 @@ class Master(object):
             eta
     ):
 
+        x, y, categorical = model.get_dataset()
+        feature_type = determine_feature_type(categorical)
+        nr_features = x.shape[1]
+
         if network == 'fcresnet':
-            config_space = get_fixed_conditional_fcresnet_config(num_res_blocks=2)
+            config_space = get_fixed_conditional_fcresnet_config(
+                nr_features,
+                feature_type,
+                num_res_blocks=2
+            )
         else:
-            config_space = get_fixed_conditional_fc_config(max_nr_layers=5)
+            config_space = get_fixed_conditional_fc_config(
+                nr_features,
+                feature_type,
+                max_nr_layers=5
+            )
 
         if array_id == 1:
 

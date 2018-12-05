@@ -359,10 +359,12 @@ def get_fixed_fcresnet_config(
 
 
 def get_fixed_conditional_fcresnet_config(
+        nr_features,
+        feature_type,
         layers_block=2,
         num_res_blocks=17,
         super_blocks=1,
-        nr_units=64
+        nr_units=64,
 ):
 
     shake_config = [
@@ -423,6 +425,43 @@ def get_fixed_conditional_fcresnet_config(
             upper=256,
             default_value=16,
             log=True
+        )
+    )
+
+    cs.add_hyperparameter(
+        ConfigSpace.CategoricalHyperparameter(
+            'class_weights',
+            include_hyperparameter
+        )
+    )
+
+    cs.add_hyperparameter(
+        ConfigSpace.Constant(
+            'feature_type',
+            feature_type
+        )
+    )
+
+    feature_preprocessing = ConfigSpace.CategoricalHyperparameter(
+        'feature_preprocessing',
+        include_hyperparameter
+    )
+
+    number_pca_components = ConfigSpace.UniformIntegerHyperparameter(
+        'pca_components',
+        lower=2,
+        upper=nr_features,
+        default_value=nr_features - 1
+    )
+
+    cs.add_hyperparameter(feature_preprocessing)
+    cs.add_hyperparameter(number_pca_components)
+
+    cs.add_condition(
+        ConfigSpace.EqualsCondition(
+            number_pca_components,
+            feature_preprocessing,
+            'Yes'
         )
     )
 
@@ -905,6 +944,8 @@ def get_fixed_fc_config(
 
 
 def get_fixed_conditional_fc_config(
+        nr_features,
+        categorical,
         max_nr_layers=34,
         nr_units=64
 ):
