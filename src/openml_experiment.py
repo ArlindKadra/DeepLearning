@@ -135,17 +135,26 @@ def main():
 def train(config, network, num_epochs, x, y, set_indices):
 
     logger = logging.getLogger(__name__)
+
     dataset_categorical = model._categorical
     # number of dataset classes
     nr_classes = max(y) + 1
 
-    # unpack set indices
+    # The below train and val
+    # indices are for the train split
+    # and not for the whole dataset.
+    # training set
     train_indices = set_indices[0]
+    # validation set
     val_indices = set_indices[1]
     test_indices = set_indices[2]
-    train_split, test_split_ = model.get_split_indices()
-    trainable_set = x[train_split]
-    labels_train_set = y[train_split]
+
+    # the original training data split
+    # and test data indices from OpenML
+    train_split_indices, test_split_indices \
+        = model.get_split_indices()
+
+    x_train_split = x[train_split_indices]
 
     # Feature preprocessing
 
@@ -155,14 +164,17 @@ def train(config, network, num_epochs, x, y, set_indices):
             config['feature_type'],
             config['pca_components'],
             x,
-            trainable_set,
+            x_train_split,
             train_indices
         )
-    trainable_set = x[train_split]
+        # update the trainable split obtained
+        # from OpenML
+        x_train_split = x[train_split_indices]
+
     # Feature normalization
 
     # calculate mean and std for train set
-    mean, std = data.calculate_stat(trainable_set[train_indices])
+    mean, std = data.calculate_stat(x_train_split[train_indices])
 
     if config['feature_preprocessing'] == 'Yes':
         # since feature preprocessing was used
@@ -175,14 +187,16 @@ def train(config, network, num_epochs, x, y, set_indices):
         if True in dataset_categorical:
             enc = OneHotEncoder(categorical_features=dataset_categorical, dtype=np.float32)
             x = enc.fit_transform(x).todense()
+    # Update training split obtained from
+    # OpenML again after the above operations.
 
-    trainable_set = x[train_split]
-    labels_train_set = y[train_split]
-    x_train = trainable_set[train_indices]
-    x_val = trainable_set[val_indices]
+    x_train_split = x[train_split_indices]
+    y_train_split = y[train_split_indices]
+    x_train = x_train_split[train_indices]
+    x_val = x_train_split[val_indices]
     x_test = x[test_indices]
-    y_train = labels_train_set[train_indices]
-    y_val = labels_train_set[val_indices]
+    y_train = y_train_split[train_indices]
+    y_val = y_train_split[val_indices]
     y_test = y[test_indices]
 
     # Get the batch size
