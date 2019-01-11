@@ -7,7 +7,7 @@ from hpbandster.core.worker import Worker
 import hpbandster.core.nameserver as hpns
 import hpbandster.core.result as hpres
 
-from src.utilities.data import determine_feature_type
+from utilities.data import determine_feature_type
 from utilities.search_space import (
     get_fc_config,
     get_fixed_fcresnet_config,
@@ -148,10 +148,12 @@ class Slave(Worker):
                 nr_folds=folds
             )
         else:
+            x_train_split = x[train_indices]
+            y_train_split = y[train_indices]
             training_indices, validation_indices = \
                 utilities.data.determine_stratified_val_set(
-                    x[train_indices],
-                    y[train_indices]
+                    x_train_split,
+                    y_train_split
                 )
             set_indices = (
                 training_indices,

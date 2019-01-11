@@ -227,7 +227,7 @@ def train(config, network, num_epochs, x, y, set_indices):
     logger.info("Number of network parameters %d", total_params)
 
     if config['class_weights'] == 'Yes':
-        class_weights = data.calculate_class_weights(labels_train_set[train_indices])
+        class_weights = data.calculate_class_weights(y_train_split[train_indices])
         class_weights = torch.from_numpy(class_weights).float()
     else:
         class_weights = None
