@@ -49,10 +49,20 @@ def cross_validation(
     # np.random.seed(11)
     # shuffled_indices = np.random.permutation(indices)
 
-    skf = StratifiedKFold(n_splits=nr_folds)
+    skf = StratifiedKFold(n_splits=10)
     x = x[train_indices]
     y = y[train_indices]
+
+    # if there is a fidelity for folds,
+    # only use the required amount
+    counter_folds = 0
+
     for train_set, validation_set in skf.split(x, y):
+
+        # if there is a fidelity for folds
+        # trigger break when we achieve the nr
+        if counter_folds == nr_folds:
+            break
 
         # calculate the size of the validation fold
         set_indices = (train_set, validation_set, test_indices)
@@ -84,16 +94,21 @@ def cross_validation(
         test_loss += output['test'][0]
         test_accuracy += output['test'][1]
 
+        # if there is a fidelity for folds
+        # count the fold we are at
+        if nr_folds != 10:
+            counter_folds += 1
+
     train_loss_epochs = np.array(train_loss_epochs)
     train_loss_min = np.amin(train_loss_epochs, axis=0)
     train_loss_max = np.amax(train_loss_epochs, axis=0)
     val_loss_epochs = np.array(val_loss_epochs)
     val_loss_min = np.amin(val_loss_epochs, axis=0)
     val_loss_max = np.amax(val_loss_epochs, axis=0)
-    val_accuracy = np.array(val_accuracy)
+    # val_accuracy = np.array(val_accuracy)
     train_loss_epochs = np.mean(train_loss_epochs, axis=0)
     val_loss_epochs = np.mean(val_loss_epochs, axis=0)
-    val_accuracy = np.mean(val_accuracy, axis=0)
+    # val_accuracy = np.mean(val_accuracy, axis=0)
 
     # average the values over the folds
     test_loss = test_loss / nr_folds
@@ -161,7 +176,8 @@ def get_alpha_beta(batch_size, shake_config, is_cuda):
     :return:
         The 2 constants alpha and beta.
     """
-    forward_shake, backward_shake, shake_image = shake_config
+    forward_shake, backward_shake, shake_image = \
+        decode_shake_shake_config(shake_config)
 
     # TODO Current implementation does not support shake even
 
@@ -184,6 +200,18 @@ def get_alpha_beta(batch_size, shake_config, is_cuda):
         beta = beta.cuda()
 
     return alpha, beta
+
+
+def decode_shake_shake_config(config_string):
+
+    shake_shake_config = {
+        'YYY': (True, True, True),
+        'YNY': (True, False, True),
+        'YYN': (True, True, False),
+        'YNN': (True, False, False)
+    }
+
+    return shake_shake_config[config_string]
 
 
 def feature_preprocessing(

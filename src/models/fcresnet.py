@@ -22,9 +22,7 @@ class FcResNet(nn.Module):
         self.softmax_layer = nn.Softmax(1)
 
         for m in self.modules():
-            if isinstance(m, nn.Linear):
-                m.bias.data.zero_()
-            elif isinstance(m, nn.BatchNorm1d):
+            if isinstance(m, nn.BatchNorm1d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
@@ -63,9 +61,11 @@ class PreActResPath(nn.Module):
         super(PreActResPath, self).__init__()
         self.number_layers = config["num_layers"]
         self.activate_dropout = True if config['activate_dropout'] == 'Yes' else False
+        self.activate_batch_norm = True if config['activate_batch_norm'] == 'Yes' else False
         self.relu = nn.ReLU(inplace=True)
         self.projection = None
-        setattr(self, "b_norm_1", nn.BatchNorm1d(in_features))
+        if self.activate_batch_norm:
+            setattr(self, "b_norm_1", nn.BatchNorm1d(in_features))
         setattr(self, "fc_1", nn.Linear(in_features, config["num_units_%d_1" % super_block]))
 
         # if 'dropout_1' in config:
@@ -77,7 +77,8 @@ class PreActResPath(nn.Module):
             setattr(self, 'dropout_1', nn.Dropout(p=config['dropout_%d_1' % super_block]))
 
         for i in range(2, self.number_layers + 1):
-            setattr(self, "b_norm_%d" % i, nn.BatchNorm1d(config["num_units_%d_%d" % (super_block, (i - 1))]))
+            if self.activate_batch_norm:
+                setattr(self, "b_norm_%d" % i, nn.BatchNorm1d(config["num_units_%d_%d" % (super_block, (i - 1))]))
             setattr(self, "fc_%d" % i, nn.Linear(config["num_units_%d_%d" % (super_block, (i - 1))], config["num_units_%d_%d" % (super_block, i)]))
             # if 'dropout_%d' % i in config:
             # setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
@@ -87,10 +88,11 @@ class PreActResPath(nn.Module):
         out = x
 
         for i in range(1, self.number_layers + 1):
-            out = getattr(self, 'b_norm_%d' % i)(out)
+            if self.activate_batch_norm:
+                out = getattr(self, 'b_norm_%d' % i)(out)
             out = self.relu(out)
             out = getattr(self, 'fc_%d' % i)(out)
-            if getattr(self, 'dropout_%d' % i, None) is not None:
+            if self.activate_dropout:
                 out = getattr(self, 'dropout_%d' % i)(out)
 
         return out
@@ -104,9 +106,11 @@ class BasicResPath(nn.Module):
         self.number_layers = config["num_layers"]
         self.relu = nn.ReLU(inplace=True)
         self.activate_dropout = True if config['activate_dropout'] == 'Yes' else False
+        self.activate_batch_norm = True if config['activate_batch_norm'] == 'Yes' else False
         self.projection = None
         setattr(self, "fc_1", nn.Linear(in_features, config["num_units_%d_1" % super_block]))
-        setattr(self, "b_norm_1", nn.BatchNorm1d(config["num_units_%d_1" % super_block]))
+        if self.activate_batch_norm:
+            setattr(self, "b_norm_1", nn.BatchNorm1d(config["num_units_%d_1" % super_block]))
 
         # adding dropout only in the case of a 2 layer res block and only once
         # TODO generalize
@@ -115,7 +119,8 @@ class BasicResPath(nn.Module):
 
         for i in range(2, self.number_layers + 1):
             setattr(self, 'fc_%d' % i, nn.Linear(config["num_units_%d_%d" % (super_block, (i - 1))], config["num_units_%d_%d" % (super_block, i)]))
-            setattr(self, 'b_norm_%d' % i, nn.BatchNorm1d(config["num_units_%d_%d" % (super_block, i)]))
+            if self.activate_batch_norm:
+                setattr(self, 'b_norm_%d' % i, nn.BatchNorm1d(config["num_units_%d_%d" % (super_block, i)]))
             # if 'dropout_%d' % i in config:
             # setattr(self, 'dropout_%d' % i, nn.Dropout(p=config['dropout_%d' % i]))
 
@@ -124,13 +129,15 @@ class BasicResPath(nn.Module):
         out = x
         for i in range(1, self.number_layers):
             out = getattr(self, 'fc_%d' % i)(out)
-            out = getattr(self, 'b_norm_%d' % i)(out)
+            if self.activate_batch_norm:
+                out = getattr(self, 'b_norm_%d' % i)(out)
             out = self.relu(out)
-            if getattr(self, 'dropout_%d' % i, None) is not None:
+            if self.activate_dropout:
                 out = getattr(self, 'dropout_%d' % i)(out)
 
         out = getattr(self, 'fc_%d' % self.number_layers)(out)
-        out = getattr(self, 'b_norm_%d' % self.number_layers)(out)
+        if self.activate_batch_norm:
+            out = getattr(self, 'b_norm_%d' % self.number_layers)(out)
 
         return out
 
@@ -144,9 +151,6 @@ class BasicBlock(nn.Module):
         self.training = True
         self.relu = nn.ReLU(inplace=True)
         self.number_layers = config["num_layers"]
-
-        # TODO configuration should be taken not hardcoded
-        self.shake_config = (True, True, True)
         self.block_type = config['block_type']
 
         if self.block_type == 'BasicRes':
@@ -159,6 +163,7 @@ class BasicBlock(nn.Module):
         if config['shake-shake'] == 'Yes':
 
             self.shake_shake = True
+            self.shake_config = config['shake_config']
             self.residual_path1 = res_path(in_features, config, super_block_nr)
             self.residual_path2 = res_path(in_features, config, super_block_nr)
 

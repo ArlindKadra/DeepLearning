@@ -44,10 +44,10 @@ class Master(object):
         nr_features = x.shape[1]
 
         if network == 'fcresnet':
-            config_space = get_fixed_conditional_fcresnet_config(
+            config_space = get_fixed_fcresnet_config(
                 nr_features,
                 feature_type,
-                num_res_blocks=2
+                num_res_blocks=4
             )
         else:
             config_space = get_fixed_conditional_fc_config(
@@ -126,16 +126,23 @@ class Slave(Worker):
         x, y, _ = model.get_dataset()
         train_indices, test_indices = model.get_split_indices()
 
-        # Standart number of epochs
-        epochs = 243
-        # Standart number of epochs
-        folds = 10
+        hardcoded_folds = \
+            {
+                9: 4,
+                27: 6,
+                91: 8,
+                243: 10,
+            }
+        epochs = int(budget)
+
         # the budget is the number of epochs
         if configuration.fidelity == 'epochs':
-            epochs = int(budget)
-        # the budget is the number of folds
-        elif configuration.fidelity == 'folds':
-            folds = int(budget)
+            nr_folds = 10
+        # the budget is the number of epochs
+        # folds also given as fidelity
+
+        elif configuration.fidelity == 'both':
+            nr_folds = hardcoded_folds[epochs]
 
         if configuration.cross_validation:
             output = utilities.regularization.cross_validation(
@@ -145,7 +152,7 @@ class Slave(Worker):
                 config,
                 train_indices,
                 test_indices,
-                nr_folds=folds
+                nr_folds=nr_folds
             )
         else:
             x_train_split = x[train_indices]

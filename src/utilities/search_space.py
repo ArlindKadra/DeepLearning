@@ -165,18 +165,33 @@ def get_super_fcresnet_config(layers_block=2, num_res_blocks=18, super_blocks=3)
 
 
 def get_fixed_fcresnet_config(
-        layers_block=2, num_res_blocks=17,
+        nr_features, feature_type,
+        layers_block=2, num_res_blocks=9,
         super_blocks=1, nr_units=64,
         activate_mixout='No', activate_shake_shake='No',
-        activate_weight_decay='No', activate_dropout='No'
+        activate_weight_decay='No', activate_dropout='No',
+        activate_batch_norm='No'
 ):
 
     # Config
     optimizers = ['Adam', 'AdamW', 'SGD', 'SGDW']
+
+    shake_shake_config = [
+        'YYY',
+        'YNY',
+        'YYN',
+        'YNN'
+    ]
+
     decay_scheduler = [
         'cosine_annealing',
         'cosine_decay',
         'exponential_decay'
+    ]
+
+    include_hyperparameter = [
+        'Yes',
+        'No'
     ]
 
     cs = ConfigSpace.ConfigurationSpace()
@@ -192,7 +207,7 @@ def get_fixed_fcresnet_config(
     )
     res_block_type = ConfigSpace.Constant(
         'block_type',
-        'PreRes'
+        'BasicRes'
     )
     nr_super_blocks = ConfigSpace.Constant(
         'num_super_blocks',
@@ -211,6 +226,43 @@ def get_fixed_fcresnet_config(
             upper=256,
             default_value=16,
             log=True
+        )
+    )
+
+    cs.add_hyperparameter(
+        ConfigSpace.CategoricalHyperparameter(
+            'class_weights',
+            include_hyperparameter
+        )
+    )
+
+    cs.add_hyperparameter(
+        ConfigSpace.Constant(
+            'feature_type',
+            feature_type
+        )
+    )
+
+    feature_preprocessing = ConfigSpace.CategoricalHyperparameter(
+        'feature_preprocessing',
+        include_hyperparameter
+    )
+
+    number_pca_components = ConfigSpace.UniformIntegerHyperparameter(
+        'pca_components',
+        lower=2,
+        upper=nr_features,
+        default_value=nr_features - 1
+    )
+
+    cs.add_hyperparameter(feature_preprocessing)
+    cs.add_hyperparameter(number_pca_components)
+
+    cs.add_condition(
+        ConfigSpace.EqualsCondition(
+            number_pca_components,
+            feature_preprocessing,
+            'Yes'
         )
     )
 
@@ -239,26 +291,50 @@ def get_fixed_fcresnet_config(
         )
     )
 
-    mixout = ConfigSpace.Constant(
-        'mixout',
-        activate_mixout
+    # add constant about mixup status
+    cs.add_hyperparameter(
+        ConfigSpace.Constant(
+            'mixout',
+            activate_mixout
+        )
     )
 
-    mixout_alpha = ConfigSpace.UniformFloatHyperparameter(
-        'mixout_alpha',
-        lower=0,
-        upper=1,
-        default_value=0.2
-    )
-    cs.add_hyperparameter(mixout)
-    if mixout.value == 'Yes':
-        cs.add_hyperparameter(mixout_alpha)
+    # add value if mixup is activated
+    if activate_mixout:
+        cs.add_hyperparameter(
+            ConfigSpace.UniformFloatHyperparameter(
+                'mixout_alpha',
+                lower=0,
+                upper=1,
+                default_value=0.2
+            )
+        )
 
-    shake_shake = ConfigSpace.Constant(
-        'shake-shake',
-        activate_shake_shake
+    # add constant related to shake shakes
+    # status
+    cs.add_hyperparameter(
+        ConfigSpace.Constant(
+            'shake-shake',
+            activate_shake_shake
+        )
     )
-    cs.add_hyperparameter(shake_shake)
+
+    # add config if shake shake is activated
+    if activate_shake_shake:
+        cs.add_hyperparameter(
+            ConfigSpace.CategoricalHyperparameter(
+                'shake_config',
+                shake_shake_config
+            )
+        )
+
+    # add constant about batch norm status
+    cs.add_hyperparameter(
+        ConfigSpace.Constant(
+            'activate_batch_norm',
+            activate_batch_norm
+        )
+    )
 
     cs.add_hyperparameter(
         ConfigSpace.UniformFloatHyperparameter(
@@ -297,22 +373,24 @@ def get_fixed_fcresnet_config(
             )
         )
     )
-    weight_decay = ConfigSpace.UniformFloatHyperparameter(
-        "weight_decay",
-        lower=10e-5,
-        upper=10e-3,
-        default_value=10e-4
+
+    # add constant about weight decay status
+    cs.add_hyperparameter(
+        ConfigSpace.Constant(
+            'activate_weight_decay',
+            activate_weight_decay
+        )
     )
-    activate_weight_decay = ConfigSpace.Constant(
-        'activate_weight_decay',
-        activate_weight_decay
-
-    )
-
-    cs.add_hyperparameter(activate_weight_decay)
-
-    if activate_weight_decay.value == 'Yes':
-        cs.add_hyperparameter(weight_decay)
+    # add weight decay value if active
+    if activate_weight_decay:
+        cs.add_hyperparameter(
+            ConfigSpace.UniformFloatHyperparameter(
+                "weight_decay",
+                lower=10e-5,
+                upper=10e-3,
+                default_value=10e-4
+            )
+        )
 
     # nr units for input layer
     cs.add_hyperparameter(
@@ -332,7 +410,9 @@ def get_fixed_fcresnet_config(
             )
             cs.add_hyperparameter(n_units)
 
-    activate_dropout = cs.add_hyperparameter(
+    # add constant regarding dropout
+    # value
+    cs.add_hyperparameter(
         ConfigSpace.Constant(
             'activate_dropout',
             activate_dropout
@@ -345,15 +425,18 @@ def get_fixed_fcresnet_config(
     for i in range(1, super_blocks + 1):
         # for now only dropout between layers
         # 1 layer dropout for res block
-        dropout = ConfigSpace.UniformFloatHyperparameter(
-            "dropout_%d_1" % i,
-            lower=0,
-            upper=0.7,
-            default_value=0.5
-        )
 
-        if activate_dropout.value == 'Yes':
-            cs.add_hyperparameter(dropout)
+        # if dropout active
+        # add value
+        if activate_dropout:
+            cs.add_hyperparameter(
+                ConfigSpace.UniformFloatHyperparameter(
+                    "dropout_%d_1" % i,
+                    lower=0,
+                    upper=0.7,
+                    default_value=0.5
+                )
+            )
 
     return cs
 
@@ -785,7 +868,7 @@ def get_fc_config(max_nr_layers=28):
 
 
 def get_fixed_fc_config(
-        max_nr_layers=34,
+        max_nr_layers=18,
         nr_units=64,
         activate_dropout='No',
         activate_weight_decay='No',

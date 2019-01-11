@@ -105,7 +105,7 @@ def main():
             run_id,
             model.get_task_id(),
             args.network_type
-    )
+        )
 
     start_time = time.time()
     optim.hpbandster.Master(
@@ -277,7 +277,6 @@ def train(config, network, num_epochs, x, y, set_indices):
     fraction = False
     if 'final_lr_fraction' in config:
         fraction = True
-
 
     scheduled_optimizer = ScheduledOptimizer(
         optimizer,
