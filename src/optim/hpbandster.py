@@ -44,7 +44,7 @@ class Master(object):
         nr_features = x.shape[1]
 
         if network == 'fcresnet':
-            config_space = get_fixed_fcresnet_config(
+            config_space = get_fixed_conditional_fcresnet_config(
                 nr_features,
                 feature_type,
                 num_res_blocks=4

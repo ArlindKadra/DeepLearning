@@ -1,6 +1,7 @@
 import ConfigSpace
 
 
+# architecture search and hyperparameter optimization
 def get_super_fcresnet_config(layers_block=2, num_res_blocks=18, super_blocks=3):
 
     # Config
@@ -164,6 +165,8 @@ def get_super_fcresnet_config(layers_block=2, num_res_blocks=18, super_blocks=3)
     return cs
 
 
+# hyperparameter optimization with user chosen
+# methods, fixed architecture
 def get_fixed_fcresnet_config(
         nr_features, feature_type,
         layers_block=2, num_res_blocks=9,
@@ -441,27 +444,22 @@ def get_fixed_fcresnet_config(
     return cs
 
 
+# conditional hyperparameter optimization,
+# fixed architecture
 def get_fixed_conditional_fcresnet_config(
-        nr_features,
-        feature_type,
-        layers_block=2,
-        num_res_blocks=17,
-        super_blocks=1,
-        nr_units=64,
+        nr_features, feature_type,
+        layers_block=2, num_res_blocks=9,
+        super_blocks=1, nr_units=64
 ):
 
-    shake_config = [
+    # Config
+    optimizers = ['Adam', 'AdamW', 'SGD', 'SGDW']
+
+    shake_shake_config = [
         'YYY',
         'YNY',
         'YYN',
         'YNN'
-    ]
-    # Config
-    optimizers = [
-        'Adam',
-        'AdamW',
-        'SGD',
-        'SGDW'
     ]
 
     decay_scheduler = [
@@ -488,14 +486,13 @@ def get_fixed_conditional_fcresnet_config(
     )
     res_block_type = ConfigSpace.Constant(
         'block_type',
-        'PreRes'
+        'BasicRes'
     )
     nr_super_blocks = ConfigSpace.Constant(
         'num_super_blocks',
         super_blocks
 
     )
-
     cs.add_hyperparameter(res_block_type)
     cs.add_hyperparameter(nr_layers_block)
     cs.add_hyperparameter(nr_res_blocks)
@@ -564,7 +561,6 @@ def get_fixed_conditional_fcresnet_config(
     )
 
     cs.add_hyperparameter(lr_fraction)
-
     cs.add_condition(
         ConfigSpace.EqualsCondition(
             lr_fraction,
@@ -574,33 +570,61 @@ def get_fixed_conditional_fcresnet_config(
         )
     )
 
-    mixout = ConfigSpace.CategoricalHyperparameter(
+    # add mixup regularization status
+    mixup = ConfigSpace.CategoricalHyperparameter(
         'mixout',
         include_hyperparameter
     )
-
-    mixout_alpha = ConfigSpace.UniformFloatHyperparameter(
+    # add mixup alpha value
+    mixup_alpha = ConfigSpace.UniformFloatHyperparameter(
         'mixout_alpha',
         lower=0,
         upper=1,
         default_value=0.2
     )
-    cs.add_hyperparameter(mixout_alpha)
-    cs.add_hyperparameter(mixout)
 
+    cs.add_hyperparameter(mixup)
+    cs.add_hyperparameter(mixup_alpha)
+
+    # add mixup_alpha only if mixup is active
     cs.add_condition(
         ConfigSpace.EqualsCondition(
-            mixout_alpha,
-            mixout,
+            mixup_alpha,
+            mixup,
             'Yes'
         )
     )
 
+    # shake-shake status
     shake_shake = ConfigSpace.CategoricalHyperparameter(
         'shake-shake',
         include_hyperparameter
     )
+    # shake-shake config
+    shake_config = ConfigSpace.CategoricalHyperparameter(
+        'shake_config',
+        shake_shake_config
+    )
+
     cs.add_hyperparameter(shake_shake)
+    cs.add_hyperparameter(shake_config)
+    
+    # add shake-shake config only if shake-shake is active
+    cs.add_condition(
+        ConfigSpace.EqualsCondition(
+            shake_shake,
+            shake_config,
+            'Yes'
+        )
+    )
+
+    # batch norm status
+    cs.add_hyperparameter(
+        ConfigSpace.CategoricalHyperparameter(
+            'activate_batch_norm',
+            include_hyperparameter
+        )
+    )
 
     cs.add_hyperparameter(
         ConfigSpace.UniformFloatHyperparameter(
@@ -639,25 +663,28 @@ def get_fixed_conditional_fcresnet_config(
             )
         )
     )
-    weight_decay = ConfigSpace.UniformFloatHyperparameter(
+
+    # weight decay status
+    weight_decay = ConfigSpace.CategoricalHyperparameter(
+            'activate_weight_decay',
+            include_hyperparameter
+    )
+    # weight decay value
+    weight_decay_value = ConfigSpace.UniformFloatHyperparameter(
         "weight_decay",
         lower=10e-5,
         upper=10e-3,
         default_value=10e-4
     )
 
-    activate_weight_decay = ConfigSpace.CategoricalHyperparameter(
-        'activate_weight_decay',
-        include_hyperparameter
-    )
-
-    cs.add_hyperparameter(activate_weight_decay)
     cs.add_hyperparameter(weight_decay)
+    cs.add_hyperparameter(weight_decay_value)
 
+    # add weight decay value only if active
     cs.add_condition(
         ConfigSpace.EqualsCondition(
             weight_decay,
-            activate_weight_decay,
+            weight_decay_value,
             'Yes'
         )
     )
@@ -680,31 +707,33 @@ def get_fixed_conditional_fcresnet_config(
             )
             cs.add_hyperparameter(n_units)
 
-    activate_dropout = ConfigSpace.CategoricalHyperparameter(
-            'activate_dropout',
-            include_hyperparameter
+    # dropout status
+    dropout = ConfigSpace.CategoricalHyperparameter(
+        'activate_dropout',
+        include_hyperparameter
     )
-    cs.add_hyperparameter(activate_dropout)
-    
+    cs.add_hyperparameter(dropout)
+
     # get dropout value for super_block
     # the same value will be used for
     # residual blocks in the super_blocks
     for i in range(1, super_blocks + 1):
         # for now only dropout between layers
         # 1 layer dropout for res block
-        dropout = ConfigSpace.UniformFloatHyperparameter(
+
+        # dropout value
+        dropout_value = ConfigSpace.UniformFloatHyperparameter(
             "dropout_%d_1" % i,
             lower=0,
             upper=0.7,
             default_value=0.5
         )
-
-        cs.add_hyperparameter(dropout)
-
+        cs.add_hyperparameter(dropout_value)
+        # add dropout value only if active
         cs.add_condition(
             ConfigSpace.EqualsCondition(
                 dropout,
-                activate_dropout,
+                dropout_value,
                 'Yes'
             )
         )
