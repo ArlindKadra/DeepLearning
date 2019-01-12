@@ -211,6 +211,6 @@ class Slave(Worker):
             result_measure = 1 - (success_rate / 100)
 
         return ({
-            'loss': float(result_measure),
+            'loss': result_measure,
             'info': output
         })
