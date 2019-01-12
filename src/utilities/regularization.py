@@ -50,14 +50,14 @@ def cross_validation(
     # shuffled_indices = np.random.permutation(indices)
 
     skf = StratifiedKFold(n_splits=10)
-    x = x[train_indices]
-    y = y[train_indices]
+    x_train = x[train_indices]
+    y_train = y[train_indices]
 
     # if there is a fidelity for folds,
     # only use the required amount
     counter_folds = 0
 
-    for train_set, validation_set in skf.split(x, y):
+    for train_set, validation_set in skf.split(x_train, y_train):
 
         # if there is a fidelity for folds
         # trigger break when we achieve the nr
