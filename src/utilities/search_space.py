@@ -303,7 +303,7 @@ def get_fixed_fcresnet_config(
     )
 
     # add value if mixup is activated
-    if activate_mixout:
+    if activate_mixout == 'Yes':
         cs.add_hyperparameter(
             ConfigSpace.UniformFloatHyperparameter(
                 'mixout_alpha',
@@ -323,7 +323,7 @@ def get_fixed_fcresnet_config(
     )
 
     # add config if shake shake is activated
-    if activate_shake_shake:
+    if activate_shake_shake == 'Yes':
         cs.add_hyperparameter(
             ConfigSpace.CategoricalHyperparameter(
                 'shake_config',
@@ -385,7 +385,7 @@ def get_fixed_fcresnet_config(
         )
     )
     # add weight decay value if active
-    if activate_weight_decay:
+    if activate_weight_decay == 'Yes':
         cs.add_hyperparameter(
             ConfigSpace.UniformFloatHyperparameter(
                 "weight_decay",
@@ -431,7 +431,7 @@ def get_fixed_fcresnet_config(
 
         # if dropout active
         # add value
-        if activate_dropout:
+        if activate_dropout == 'Yes':
             cs.add_hyperparameter(
                 ConfigSpace.UniformFloatHyperparameter(
                     "dropout_%d_1" % i,
@@ -608,12 +608,12 @@ def get_fixed_conditional_fcresnet_config(
 
     cs.add_hyperparameter(shake_shake)
     cs.add_hyperparameter(shake_config)
-    
+
     # add shake-shake config only if shake-shake is active
     cs.add_condition(
         ConfigSpace.EqualsCondition(
-            shake_shake,
             shake_config,
+            shake_shake,
             'Yes'
         )
     )
@@ -683,8 +683,8 @@ def get_fixed_conditional_fcresnet_config(
     # add weight decay value only if active
     cs.add_condition(
         ConfigSpace.EqualsCondition(
-            weight_decay,
             weight_decay_value,
+            weight_decay,
             'Yes'
         )
     )
@@ -732,8 +732,8 @@ def get_fixed_conditional_fcresnet_config(
         # add dropout value only if active
         cs.add_condition(
             ConfigSpace.EqualsCondition(
-                dropout,
                 dropout_value,
+                dropout,
                 'Yes'
             )
         )
