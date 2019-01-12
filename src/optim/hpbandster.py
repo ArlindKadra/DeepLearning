@@ -154,6 +154,8 @@ class Slave(Worker):
                 test_indices,
                 nr_folds=nr_folds
             )
+            val_accuracy = output['val_accuracy']
+
         else:
             x_train_split = x[train_indices]
             y_train_split = y[train_indices]

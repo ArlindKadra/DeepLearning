@@ -121,6 +121,7 @@ def cross_validation(
         'val_loss': val_loss_epochs.tolist(),
         'val_loss_min': val_loss_min.tolist(),
         'val_loss_max': val_loss_max.tolist(),
+        'val_accuracy': val_accuracy,
         'test_loss': test_loss,
         'test_accuracy': test_accuracy,
         'nr_epochs': output['nr_epochs']
