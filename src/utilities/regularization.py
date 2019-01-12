@@ -234,4 +234,4 @@ def feature_preprocessing(
     procedure = procedure.fit(train_split[train_indices])
     x = procedure.transform(x)
 
-    return x
+    return np.asarray(x)
