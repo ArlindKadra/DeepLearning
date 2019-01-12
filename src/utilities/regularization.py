@@ -209,7 +209,8 @@ def decode_shake_shake_config(config_string):
         'YYY': (True, True, True),
         'YNY': (True, False, True),
         'YYN': (True, True, False),
-        'YNN': (True, False, False)
+        'YNN': (True, False, False),
+        'NNN': (False, False, False)
     }
 
     return shake_shake_config[config_string]

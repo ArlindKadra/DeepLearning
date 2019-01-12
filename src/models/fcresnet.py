@@ -191,7 +191,7 @@ class BasicBlock(nn.Module):
 
             else:
 
-                shake_config = (False, False, False)
+                shake_config = 'NNN'
 
             alpha, beta = utilities.regularization.get_alpha_beta(x.size(0), shake_config, x.is_cuda)
             out = utilities.regularization.shake_function(x1, x2, alpha, beta)
