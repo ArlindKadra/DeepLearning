@@ -105,10 +105,10 @@ def cross_validation(
     val_loss_epochs = np.array(val_loss_epochs)
     val_loss_min = np.amin(val_loss_epochs, axis=0)
     val_loss_max = np.amax(val_loss_epochs, axis=0)
-    # val_accuracy = np.array(val_accuracy)
+    val_accuracy = np.array(val_accuracy)
     train_loss_epochs = np.mean(train_loss_epochs, axis=0)
     val_loss_epochs = np.mean(val_loss_epochs, axis=0)
-    # val_accuracy = np.mean(val_accuracy, axis=0)
+    val_accuracy = np.mean(val_accuracy, axis=0)
 
     # average the values over the folds
     test_loss = test_loss / nr_folds
