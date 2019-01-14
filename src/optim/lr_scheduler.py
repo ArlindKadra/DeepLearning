@@ -44,9 +44,17 @@ class CosineScheduler(object):
                 self.anneal_epoch = 0
                 self.nr_epochs -= self.anneal_max_epoch
                 decay = 1
+                # can it handle one restart
                 if self.nr_epochs >= self.anneal_max_epoch * self.anneal_multiply:
                     self.anneal_max_epoch = self.anneal_max_epoch * \
                                             self.anneal_multiply
+                    # can it handle two restarts
+                    if self.nr_epochs >= (self.anneal_max_epoch + self.anneal_max_epoch * self.anneal_multiply):
+                        # it can handle two restarts
+                        pass
+                    else:
+                        self.anneal_max_epoch = self.nr_epochs
+                # should never reach here
                 else:
                     self.anneal_max_epoch = self.nr_epochs
             else:
