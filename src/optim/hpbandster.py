@@ -53,7 +53,7 @@ class Master(object):
             config_space = get_fixed_conditional_fc_config(
                 nr_features,
                 feature_type,
-                max_nr_layers=5
+                max_nr_layers=9
             )
 
         if array_id == 1:

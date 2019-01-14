@@ -13,9 +13,7 @@ class FcNet(nn.Module):
         self.softmax_layer = nn.Softmax(1)
 
         for m in self.modules():
-            if isinstance(m, nn.Linear):
-                m.bias.data.zero_()
-            elif isinstance(m, nn.BatchNorm1d):
+            if isinstance(m, nn.BatchNorm1d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
@@ -41,7 +39,7 @@ class BasicBlock(nn.Module):
 
         super(BasicBlock, self).__init__()
         self.dropout_activated = True if config['activate_dropout'] == 'Yes' else False
-        self.batch_norm_activated = True if config['batch_norm'] == 'Yes' else False
+        self.batch_norm_activated = True if config['activate_batch_norm'] == 'Yes' else False
         self.training = True
         self.linear = nn.Linear(in_features, config['num_units_%i' % block_nr])
         self.relu = nn.ReLU(inplace=True)
