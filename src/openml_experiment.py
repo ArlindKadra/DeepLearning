@@ -156,8 +156,14 @@ def train(config, network, num_epochs, x, y, set_indices):
 
     x_train_split = x[train_split_indices]
 
-    # Feature preprocessing
+    # Feature normalization
 
+    # calculate mean and std for train set
+    mean, std = data.calculate_stat(x_train_split[train_indices])
+
+    x = data.feature_normalization(x, mean, std, dataset_categorical)
+
+    # feature preprocessing
     if config['feature_preprocessing'] == 'Yes':
 
         x = regularization.feature_preprocessing(
@@ -169,24 +175,15 @@ def train(config, network, num_epochs, x, y, set_indices):
         )
         # update the trainable split obtained
         # from OpenML
-        x_train_split = x[train_split_indices]
 
-    # Feature normalization
 
-    # calculate mean and std for train set
-    mean, std = data.calculate_stat(x_train_split[train_indices])
 
-    if config['feature_preprocessing'] == 'Yes':
-        # since feature preprocessing was used
-        # the information regarding categorical
-        # data is not useful anymore.
-        x = data.feature_normalization(x, mean, std, categorical=None)
-    else:
-        x = data.feature_normalization(x, mean, std, dataset_categorical)
+    if config['feature_preprocessing'] == 'No':
         # Deal with categorical attributes
         if True in dataset_categorical:
             enc = OneHotEncoder(categorical_features=dataset_categorical, dtype=np.float32)
             x = enc.fit_transform(x).todense()
+
     # Update training split obtained from
     # OpenML again after the above operations.
 
