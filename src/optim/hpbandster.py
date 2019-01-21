@@ -9,13 +9,10 @@ import hpbandster.core.result as hpres
 
 from utilities.data import determine_feature_type
 from utilities.search_space import (
-    get_fc_config,
     get_fixed_fcresnet_config,
-    get_fixed_fc_config,
     get_fixed_conditional_fc_config,
-    get_super_fcresnet_config,
-    get_fixed_conditional_fcresnet_config
 )
+
 import openml_experiment
 import model
 import config as configuration
@@ -49,7 +46,7 @@ class Master(object):
                 feature_type,
                 num_res_blocks=4,
                 nr_units=64,
-                activate_mixout='Yes'
+                activate_batch_norm='Yes'
             )
         else:
             config_space = get_fixed_conditional_fc_config(
