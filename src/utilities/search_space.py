@@ -254,7 +254,7 @@ def get_fixed_fcresnet_config(
     number_pca_components = ConfigSpace.UniformIntegerHyperparameter(
         'pca_components',
         lower=2,
-        upper=nr_features,
+        upper=nr_features - 1,
         default_value=nr_features - 1
     )
 
@@ -531,7 +531,7 @@ def get_fixed_conditional_fcresnet_config(
     number_pca_components = ConfigSpace.UniformIntegerHyperparameter(
         'pca_components',
         lower=2,
-        upper=nr_features,
+        upper=nr_features - 1,
         default_value=nr_features - 1
     )
 

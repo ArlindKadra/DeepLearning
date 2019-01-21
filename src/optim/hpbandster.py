@@ -44,10 +44,12 @@ class Master(object):
         nr_features = x.shape[1]
 
         if network == 'fcresnet':
-            config_space = get_fixed_conditional_fcresnet_config(
+            config_space = get_fixed_fcresnet_config(
                 nr_features,
                 feature_type,
-                num_res_blocks=4
+                num_res_blocks=4,
+                nr_units=64,
+                activate_mixout='Yes'
             )
         else:
             config_space = get_fixed_conditional_fc_config(
@@ -130,7 +132,7 @@ class Slave(Worker):
             {
                 9: 4,
                 27: 6,
-                91: 8,
+                81: 8,
                 243: 10,
             }
         epochs = int(budget)
