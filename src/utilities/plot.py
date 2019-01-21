@@ -73,7 +73,7 @@ def test_loss_over_budgets(working_dir):
     ax.set_ylabel("Test Loss")
     # plt.show()
     # Save the figure
-    plt.savefig(os.path.join(working_dir, 'budget_test_loss.png'), bbox_inches='tight')
+    plt.savefig(os.path.join(working_dir, 'budget_test_loss.pdf'), bbox_inches='tight')
     plt.close(fig)
 
 
@@ -110,7 +110,7 @@ def best_conf_val_loss(working_dir):
     ax.legend(loc='best')
     # plt.show()
     # Save the figure
-    plt.savefig(os.path.join(working_dir, 'validation_curve.png'), bbox_inches='tight')
+    plt.savefig(os.path.join(working_dir, 'validation_curve.pdf'), bbox_inches='tight')
     plt.close(fig)
 
 
@@ -146,7 +146,7 @@ def plot_curves(working_dir):
         plot_index += 1
 
     # plt.show()
-    plt.savefig(os.path.join(working_dir, 'top_curves.png'), bbox_inches='tight')
+    plt.savefig(os.path.join(working_dir, 'top_curves.pdf'), bbox_inches='tight')
     plt.close(fig)
 
 
@@ -190,7 +190,7 @@ def plot_rank_correlations(working_dir):
         plt.savefig(
             os.path.join(
                 working_dir,
-                'rank_correlations.png'
+                'rank_correlations.pdf'
             ),
             bbox_inches = 'tight'
         )
