@@ -25,15 +25,59 @@ from models.fcnet import FcNet
 def main():
 
     parser = argparse.ArgumentParser(description='Fully connected residual network')
-    parser.add_argument('--num_workers', help='Number of BOHB workers.', default=1, type=int)
-    parser.add_argument('--num_iterations', help='Number of BOHB iterations.', default=4, type=int)
-    parser.add_argument('--run_id', help='unique id to identify the BOHB run.', default='BOHB_Autonet', type=str)
-    parser.add_argument('--array_id', help='SGE array id to tread one job array as a HPB run.', default=1, type=int)
-    parser.add_argument('--working_dir', help='working directory to store live data.', default='.', type=str)
-    parser.add_argument('--nic_name', help='name of the Network Interface Card.', default='lo', type=str)
-    parser.add_argument('--network_type', help='network to be used for the task.', default='fcresnet', type=str)
-    parser.add_argument('--cluster_workload', help='Workload management package.', default='slurm', type=str)
-    parser.add_argument('--cross_validation', help='Cross-Validation flag', default=False, type=bool)
+    parser.add_argument(
+        '--num_workers',
+        help='Number of BOHB workers.',
+        default=1,
+        type=int
+    )
+    parser.add_argument(
+        '--num_iterations',
+        help='Number of BOHB iterations.',
+        default=4,
+        type=int
+    )
+    parser.add_argument(
+        '--run_id',
+        help='unique id to identify the BOHB run.',
+        default='BOHB_Autonet',
+        type=str
+    )
+    parser.add_argument(
+        '--array_id',
+        help='SGE array id to tread one job array as a HPB run.',
+        default=1,
+        type=int
+    )
+    parser.add_argument(
+        '--working_dir',
+        help='working directory to store live data.',
+        default='.',
+        type=str)
+    parser.add_argument(
+        '--nic_name',
+        help='name of the Network Interface Card.',
+        default='lo',
+        type=str
+    )
+    parser.add_argument(
+        '--network_type',
+        help='network to be used for the task.',
+        default='fcresnet',
+        type=str
+    )
+    parser.add_argument(
+        '--cluster_workload',
+        help='Workload management package.',
+        default='slurm',
+        type=str
+    )
+    parser.add_argument(
+        '--cross_validation',
+        help='Cross-Validation flag',
+        default=False,
+        type=bool
+    )
     parser.add_argument(
         '--predictive_measure',
         help='Measure which will be passed to the hyperparameter '
@@ -122,7 +166,8 @@ def main():
     )
     end_time = time.time()
     duration = (end_time - start_time) / 60
-    
+
+    # Do the following only for the master
     if args.array_id == 1:
 
         log.general_info(working_dir, duration)
@@ -173,12 +218,7 @@ def train(config, network, num_epochs, x, y, set_indices):
             x_train_split,
             train_indices
         )
-        # update the trainable split obtained
-        # from OpenML
-
-
-
-    if config['feature_preprocessing'] == 'No':
+    else:
         # Deal with categorical attributes
         if True in dataset_categorical:
             enc = OneHotEncoder(categorical_features=dataset_categorical, dtype=np.float32)
@@ -230,6 +270,7 @@ def train(config, network, num_epochs, x, y, set_indices):
         class_weights = None
 
     criterion = nn.CrossEntropyLoss(weight=class_weights)
+
     weight_decay = 0
     if 'weight_decay' in config:
         weight_decay = config['weight_decay']
@@ -352,6 +393,7 @@ def train(config, network, num_epochs, x, y, set_indices):
         total = 0
         outputs = network(x_val)
         val_loss = criterion(outputs, y_val).item()
+        network_train_loss.append(running_loss / nr_batches)
 
         # bad configuration, stop training
         # add -1 as the loss for the validation
@@ -369,7 +411,6 @@ def train(config, network, num_epochs, x, y, set_indices):
         correct += ((predicted == y_val).sum()).item()
         val_accuracy = 100 * correct / total
 
-        network_train_loss.append(running_loss / nr_batches)
         network_val_loss.append(val_loss)
         network_val_accuracy.append(val_accuracy)
         logger.info(
