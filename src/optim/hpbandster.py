@@ -45,8 +45,7 @@ class Master(object):
                 nr_features,
                 feature_type,
                 num_res_blocks=4,
-                nr_units=64,
-                activate_batch_norm='Yes'
+                nr_units=64
             )
         else:
             config_space = get_fixed_conditional_fc_config(

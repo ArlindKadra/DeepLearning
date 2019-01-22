@@ -4,14 +4,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set()
 
-from collections import OrderedDict
 import os
 import pickle
 import json
 import math
 
 from scipy.stats import spearmanr
-import numpy as np
 
 
 def load_data(working_dir):
@@ -155,43 +153,40 @@ def plot_rank_correlations(working_dir):
     with open(os.path.join(working_dir, "results.pkl"), "rb") as fp:
         result = pickle.load(fp)
 
-    values = OrderedDict()
-    fig = plt.figure(4)  # an empty figure with no axes
+    low_fid = []
+    high_fid = []
     runs = result.get_learning_curves()
+    fig = plt.figure(4)
 
-    iterations = set([len(value[0]) for value in runs.values()])
-    max_iteration = max(iterations)
-    # for each run a dict of config ids as keys and
-    # a list of lists. The inner list contains tuples
-    # with budget and loss
-    for conf_id in runs.keys():
-        # get the inner list
-        configs = runs[conf_id][0]
-        # this config was run for all budgets
-        if len(configs) == max_iteration:
-            for config in configs:
-                if config[0] not in values:
-                    values[config[0]] = []
-                values[config[0]].append(config[1])
+    budgets = [9.0, 27.0, 81.0, 243.0]
+    for i in range(0, len(budgets)):
+        for j in range(i + 1, len(budgets)):
+            small_fid = budgets[i]
+            big_fidelity = budgets[j]
+            # for each run a dict of config ids as keys and
+            # a list of lists. The inner list contains tuples
+            for conf_id in runs.keys():
+                # get the inner list
+                configs = runs[conf_id][0]
+                if configs[0][0] == small_fid and configs[-1][0] == big_fidelity:
+                    low_fid.append(configs[0][1])
+                    high_fid.append(configs[-1][1])
+            plt.scatter(low_fid, high_fid)
+            plt.xlabel("%.0f" % small_fid)
+            plt.ylabel("%.0f" % big_fidelity)
+            rco, p = spearmanr(low_fid, high_fid)
+            title = "Fidelity %.0f, %.0f \n" \
+                    "Rank correlation %f (p value %f)" % (small_fid, big_fidelity, rco, p)
+            plt.title(title)
+            low_fid.clear()
+            high_fid.clear()
 
-    budgets = values.keys()
-    rho, _ = spearmanr([losses for key, losses in values.items()], axis=1)
-    mask = np.zeros_like(rho)
-    # remove redudant information since the matrix is symmetrical
-    mask[np.triu_indices_from(mask)] = True
-    with sns.axes_style("white"):
-        ax = sns.heatmap(
-            rho, mask=mask, vmax=1,
-            annot=True, yticklabels=budgets,
-            xticklabels=budgets, square=True,
-            cmap="YlGnBu"
-        )
-        ax.set_title("Rank correlation")
-        plt.savefig(
-            os.path.join(
-                working_dir,
-                'rank_correlations.pdf'
-            ),
-            bbox_inches = 'tight'
-        )
-        plt.close(fig)
+            plt.savefig(
+                os.path.join(
+                    working_dir,
+                    'fidelity%.0f%.0f.pdf' % (small_fid, big_fidelity)
+                ),
+                bbox_inches='tight'
+            )
+            plt.clf()
+    plt.close(fig)
