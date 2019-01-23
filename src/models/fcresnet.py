@@ -27,7 +27,7 @@ class FcResNet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight, gain=nn.init.calculate_gain('relu'))
+                nn.init.xavier_normal_(m.weight, gain=nn.init.calculate_gain('relu'))
                 m.bias.data.zero_()
             if isinstance(m, nn.BatchNorm1d):
                 m.weight.data.fill_(1)
