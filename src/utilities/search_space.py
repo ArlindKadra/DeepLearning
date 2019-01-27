@@ -508,7 +508,7 @@ def get_fixed_conditional_fcresnet_config(
         )
     )
 
-# class weights and feature preprocessing
+    # class weights and feature preprocessing
     cs.add_hyperparameter(
         ConfigSpace.CategoricalHyperparameter(
             'class_weights',

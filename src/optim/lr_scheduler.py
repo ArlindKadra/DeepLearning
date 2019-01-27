@@ -147,7 +147,6 @@ class ScheduledOptimizer(object):
         if self.scheduler is not None:
             self.scheduler.step(epoch)
 
-
     def step_optim(self):
         self.optimizer.step()
 

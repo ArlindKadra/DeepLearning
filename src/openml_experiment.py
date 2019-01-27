@@ -343,7 +343,8 @@ def train(config, network, num_epochs, x, y, set_indices):
 
         running_loss = 0.0
         nr_batches = 0
-        # train the network
+
+        # training the network
         network.train()
 
         for i in range(0, (x_train.shape[0] - batch_size), batch_size):
@@ -380,39 +381,45 @@ def train(config, network, num_epochs, x, y, set_indices):
                 raise ValueError("NaN value in output")
 
             loss = loss_function(criterion, output)
-
             loss.backward()
             running_loss += loss.item()
             nr_batches += 1
             scheduled_optimizer.step_optim()
 
+        # finished with the batch iterations
+        # reached end of epoch
+        scheduled_optimizer.step_scheduler(epoch)
+        network_train_loss.append(running_loss / nr_batches)
+
         # Using validation data
         network.eval()
 
-        correct = 0
-        total = 0
-        outputs = network(x_val)
-        val_loss = criterion(outputs, y_val).item()
-        network_train_loss.append(running_loss / nr_batches)
+        with torch.no_grad():
 
-        # bad configuration, stop training
-        # add -1 as the loss for the validation
-        # and test
-        if np.isnan(val_loss):
-            network_val_loss.append(math.inf)
-            return {
-                'test': (math.inf, 0),
-                'validation': (network_val_loss, 0),
-                'train': network_train_loss
-            }
+            correct = 0
+            total = 0
+            outputs = network(x_val)
+            val_loss = criterion(outputs, y_val).item()
 
-        _, predicted = torch.max(outputs.data, 1)
-        total += y_val.size(0)
-        correct += ((predicted == y_val).sum()).item()
-        val_accuracy = 100 * correct / total
+            # bad configuration, stop training
+            # add -1 as the loss for the validation
+            # and test
+            if np.isnan(val_loss):
+                network_val_loss.append(math.inf)
+                return {
+                    'test': (math.inf, 0),
+                    'validation': (network_val_loss, 0),
+                    'train': network_train_loss
+                }
+
+            _, predicted = torch.max(outputs.data, 1)
+            total += y_val.size(0)
+            correct += ((predicted == y_val).sum()).item()
+            val_accuracy = 100 * correct / total
 
         network_val_loss.append(val_loss)
         network_val_accuracy.append(val_accuracy)
+
         logger.info(
             'Epoch %d, Train loss: %.3f, '
             'Validation loss: %.3f, accuracy %.3f',
@@ -430,14 +437,15 @@ def train(config, network, num_epochs, x, y, set_indices):
             scheduled_optimizer.get_weight_decay()
         )
 
-        scheduled_optimizer.step_scheduler(epoch)
-
+    # testing part
     with torch.no_grad():
+
         correct = 0
         total = 0
         x_test = torch.from_numpy(x_test).float()
         y_test = torch.from_numpy(y_test).long()
         x_test, y_test = x_test.to(device), y_test.to(device)
+        # reconfirming, although it is set in validation
         network.eval()
         outputs = network(x_test)
         test_loss = criterion(outputs, y_test)
