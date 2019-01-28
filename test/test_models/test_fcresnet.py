@@ -23,7 +23,9 @@ class TestFcResNet(unittest.TestCase):
         config = get_fixed_fcresnet_config(
             nr_features,
             feature_type,
-            num_res_blocks=2
+            super_blocks=2,
+            num_res_blocks=4,
+            activate_dropout='Yes'
         ).sample_configuration()
 
         network = FcResNet(
@@ -31,6 +33,8 @@ class TestFcResNet(unittest.TestCase):
             self.x.shape[1],
             len(set(self.y))
         )
+
+        print(network)
 
         total_params = sum(p.numel() for
                            p in network.parameters() if p.requires_grad)
@@ -98,3 +102,7 @@ class TestFcResNet(unittest.TestCase):
         weights += x.shape[1] * 64
 
         self.assertEqual(weights, total_params)
+
+
+if __name__ == '__main__':
+    unittest.main()

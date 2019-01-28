@@ -61,4 +61,59 @@ def setup_logging(log_file, level=logging.INFO):
     fh.setFormatter(f)
     root.addHandler(fh)
 
+
+def info_reg_methods(working_dir, network, destination_dir):
+
+    performs_better = list()
+    performs_same = 0
+    performs_worse = list()
+    nr_values = 0
+
+    regularization_methods = {
+        'Batch Normalization': 'resnet_only_batch',
+        'Shake Shake': 'resnet_only_shake',
+        'Mixup': 'resnet_only_mix',
+        'Dropout': 'resnet_only_drop',
+        'Weight Decay': 'resnet_only_decay'
+    }
+
+    for regularization, folder in regularization_methods.items():
+        for task_id in read_task_ids(working_dir):
+            try:
+                with open(os.path.join(working_dir, folder,  'task_%d' % task_id, network, "best_config_info.txt"), "r") as fp:
+                    output = json.load(fp)
+                    regularization_value = output['test_accuracy']
+                with open(os.path.join(working_dir, 'resnet_only_vanilla',  'task_%d' % task_id, network, "best_config_info.txt"), "r") as fp:
+                    output = json.load(fp)
+                    vanilla_value = output['test_accuracy']
+
+                nr_values += 1
+                if regularization_value > vanilla_value:
+                    performs_better.append(regularization_value - vanilla_value)
+                elif regularization_value == vanilla_value:
+                    performs_same += 1
+                else:
+                    performs_worse.append(regularization_value-vanilla_value)
+
+            except FileNotFoundError:
+                # Can be that the experiment with the vanilla net
+                # failed, can be the regularized one failed.
+                # Comparison cannot be made.
+                pass
+
+        # finished iterating through tasks
+        with open(os.path.join(os.path.expanduser(destination_dir), "info_regarding_reg_methods"), 'a') as fp:
+            fp.write("%s performed better in %d tasks out of %d\n" %(regularization, len(performs_better), nr_values))
+            fp.write("With mean %f, std %f\n" %(np.mean(performs_better), np.std(performs_better)))
+            fp.write("Performed same in %d tasks out of %d\n" % (performs_same, nr_values))
+            fp.write("Performed worse in %d tasks out of %d\n" % (len(performs_worse), nr_values))
+            fp.write("With mean %f, std %f\n" % (np.mean(performs_worse), np.std(performs_worse)))
+            fp.write("\n")
+
+        nr_values = 0
+        performs_worse.clear()
+        performs_better.clear()
+        performs_same = 0
+
+
 # prepare_openml100("/home/fr/fr_fr/fr_ak547/experiments")
