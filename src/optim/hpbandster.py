@@ -104,8 +104,18 @@ class Master(object):
 
             # workers only instantiate the Slave, find the nameserver and start serving
             w = Slave(run_id=run_id, host=host)
-            w.load_nameserver_credentials(working_dir)
-            # run worker in the forground,
+            while True:
+                try:
+                    w.load_nameserver_credentials(working_dir)
+                    break
+                except RuntimeError as e:
+                    # do nothing
+                    # wait until configuration is
+                    # found
+                    pass
+
+
+            # run worker in the foreground,
             w.run(background=False)
 
 
@@ -126,9 +136,9 @@ class Slave(Worker):
 
         hardcoded_folds = \
             {
-                9: 4,
-                27: 6,
-                81: 8,
+                9: 2,
+                27: 4,
+                81: 6,
                 243: 10,
             }
         epochs = int(budget)

@@ -66,7 +66,7 @@ def determine_input_sets(nr_examples):
 
 def determine_stratified_val_set(x_train, y_train, nr_folds=10):
 
-    skf = StratifiedKFold(n_splits=nr_folds)
+    skf = StratifiedKFold(n_splits=nr_folds, random_state=69)
     train_indices = None
     validation_indices = None
     for train_set, validation_set in skf.split(x_train, y_train):
