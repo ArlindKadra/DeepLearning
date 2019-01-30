@@ -1,17 +1,21 @@
 from collections import OrderedDict
+from collections import defaultdict
 import os
 import pickle
+import math
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+import pandas as pd
 import numpy as np
 from scipy.stats import spearmanr
 import json
 from matplotlib import colors as mcolors
+import ConfigSpace as CS
 
 import model
 from fanova import fANOVA
-from utilities.search_space import get_fixed_conditional_fcresnet_config
+from utilities.search_space import get_fixed_conditional_fanova_fcresnet_config
 from utilities.data import determine_feature_type
 import openml
 
@@ -367,85 +371,213 @@ def calculate_performance_over_dataset_size(working_dir, network, destination_di
 
 # calculate_performance_over_dataset_size('/home/kadraa/Documents/exp1-thesis', 'fcresnet', '/home/kadraa/Documents/exp1-thesis')
 
+def string_to_numerical_categorical(hyperparameter, value):
+
+    optimizers = {
+        'Adam': 0,
+        'AdamW': 1,
+        'SGD': 2,
+        'SGDW': 3
+    }
+
+    include = {
+        'Yes': 0,
+        'No': 1
+    }
+
+    decay_scheduler = {
+        'cosine_annealing': 0,
+        'cosine_decay': 1,
+        'exponential_decay': 2
+    }
+
+    other_categorical_hyper = {
+        'class_weights',
+        'feature_preprocessing',
+        'mixout',
+        'shake-shake',
+        'activate_batch_norm',
+        'activate_weight_decay',
+        'activate_dropout'
+    }
+
+    if hyperparameter == 'optimizer':
+        return optimizers[value]
+    elif hyperparameter == 'decay_type':
+        return decay_scheduler[value]
+    elif hyperparameter in other_categorical_hyper:
+        return include[value]
+    else:
+        return value
+
 def calculate_hp_importance_over_dataset_size(working_dir, network, destination_dir):
 
-    task_dataset_sizes = list()
+    budgets = [81]
 
-    #default_task_ids = read_task_ids(working_dir)
-    #default_task_dataset_sizes = \
-        #calculate_dataset_sizes(default_task_ids)
+    importance = defaultdict(lambda: list())
 
-    #dataset_size_for_task = dict()
+    default_task_ids = read_task_ids(working_dir)
+    default_task_dataset_sizes = \
+        calculate_dataset_sizes(default_task_ids)
+    dataset_size_for_task = dict()
 
-    #for task, task_size in zip(default_task_ids, default_task_dataset_sizes):
-      #  dataset_size_for_task[task] = task_size
+    for task, task_size in zip(default_task_ids, default_task_dataset_sizes):
+        dataset_size_for_task[task] = task_size
 
-
+    fig = plt.figure(5)
 
     methods = {
         'Conditional Network': 'resnet_only_conditional',
-        'Network + Shake Shake': 'resnet_only_shake',
-        'Network + Mixup': 'resnet_only_mix',
-        'Network + Dropout': 'resnet_only_drop',
-        'Network + Weight Decay': 'resnet_only_decay'
     }
-
-    config_spaces = {
-        'Conditional Network': None,
-        'Network + Shake Shake': {'activate_shake_shake': 'Yes'},
-        'Network + Mixup': {'activate_mixout': 'Yes'},
-        'Network + Dropout': {'activate_dropout': 'Yes'},
-        'Network + Weight Decay': {'activate_weight_decay': 'Yes'}
-    }
-
-
+    task_dataset_sizes = list()
+    config_space = get_fixed_conditional_fanova_fcresnet_config()
+    hp_names = list(map(lambda hp: hp.name, config_space.get_hyperparameters()))
     for method, folder in methods.items():
-        fig = plt.figure(method)
         for task_id in read_task_ids(working_dir):
+
+            X = []
+            y = []
             try:
                 with open(os.path.join(working_dir, folder, 'task_%d' % task_id, network, "results.pkl"), "rb") as fp:
                     result = pickle.load(fp)
-                model.Loader(task_id)
-                x, _, categorical = model.get_dataset()
-                feature_type = determine_feature_type(categorical)
-                nr_features = x.shape[1]
-                if config_spaces[method] is None:
-                    x, y, config = result.get_fANOVA_data(get_fixed_conditional_fcresnet_config(nr_features, feature_type))
-                else:
-                    x, y, config = result.get_fANOVA_data(get_fixed_conditional_fcresnet_config(nr_features, feature_type, **config_spaces[method]))
-                np.place(x, x==None, [0, 0.1])
-                np.place(x, x =='Yes', [1])
-                np.place(x, x == 'No', [0])
 
-                fanova_object = fANOVA(x, y)
-                best_marginals = fanova_object.get_most_important_pairwise_marginals(5)
-                print(best_marginals)
-                # task_dataset_sizes.append(dataset_size_for_task[task_id])
-            except Exception as e:
-                # No pickle file for this method
-                raise e
-                pass
-        """
-        path = os.path.join(os.path.expanduser(destination_dir), "%s" %(method), "hp_importance")
+                id2conf = result.get_id2config_mapping()
+                all_runs = result.get_all_runs(only_largest_budget=False)
+                all_runs = list(filter(lambda r: r.budget in budgets, all_runs))
+
+                for r in all_runs:
+                    if r.loss is None: continue
+                    config = id2conf[r.config_id]['config']
+                    X.append([string_to_numerical_categorical(hp, config[hp]) for hp in hp_names])
+                    y.append(r.loss)
+
+            except FileNotFoundError:
+                continue
+
+            if len(X) > 0:
+                fanova_object = fANOVA(np.asarray(X), np.asarray(y), config_space)
+                importance_dict = fanova_object.quantify_importance((0,))
+                print(importance_dict[(0,)]['individual_importance'])
+
+            else:
+                continue
+            for hp in hp_names:
+                importance[hp].append(fanova_object.quantify_importance((hp,)))
+            task_dataset_sizes.append(dataset_size_for_task[task_id])
+        path = os.path.join(os.path.expanduser(destination_dir), 'importance_over_datasets', method)
         if os.path.exists(path):
             if not os.path.isdir(path):
                 os.makedirs(path)
         else:
             os.makedirs(path)
 
-        plt.scatter(task_dataset_sizes, performance_tasks)
-        ax = plt.subplot(111)
-        ax.set_xlabel("Dataset size")
-        ax.set_ylabel("Test Accuracy")
-        ax.set_title("Performance of %s over dataset size" %(method))
-        # ax.legend(loc='best')
-        plt.savefig(os.path.join(path, '%s.pdf' % (method)), bbox_inches='tight')
-        plt.clf()
+        plt.xlabel("Dataset size")
+        for hp in importance:
 
-        # changing method
-        performance_tasks.clear()
-        task_dataset_sizes.clear()
+            plt.scatter(importance[hp], task_dataset_sizes)
+            plt.ylabel("Importance %s" % hp)
+            plt.rcParams['axes.unicode_minus'] = False
+            title = "Importance of  %s over dataset size" % hp
+            plt.title(title)
+            plt.savefig(
+                os.path.join(
+                    path,
+                    'importance_%s.pdf' % hp
+                ),
+                bbox_inches='tight'
+            )
+            plt.clf()
+    plt.close(fig)
 
-        plt.close(fig)
-        """
 calculate_hp_importance_over_dataset_size('/home/kadraa/Documents/exp1-thesis', 'fcresnet', '/home/kadraa/Documents/exp1-thesis')
+
+
+
+def plot_rank_correlations_over_dataset_size(working_dir, network, method, destination_dir):
+
+    fidelities = defaultdict(lambda :list())
+
+    default_task_ids = read_task_ids(working_dir)
+    default_task_dataset_sizes = \
+        calculate_dataset_sizes(default_task_ids)
+
+    fig = plt.figure(4)
+
+    for task_id in read_task_ids(working_dir):
+
+        try:
+            with open(os.path.join(working_dir, method, 'task_%d' % task_id, network, "results.pkl"), "rb") as fp:
+                result = pickle.load(fp)
+        except:
+            # no pickle for this task, pass
+            pass
+
+        low_fid = []
+        high_fid = []
+        runs = result.get_learning_curves()
+
+        budgets = [9.0, 27.0, 81.0, 243.0]
+        for i in range(0, len(budgets)):
+            small_fid = budgets[i]
+            for j in range(i + 1, len(budgets)):
+                big_fidelity = budgets[j]
+                # for each run a dict of config ids as keys and
+                # a list of lists. The inner list contains tuples
+                for conf_id in runs.keys():
+                    # get the inner list
+                    configs = runs[conf_id][0]
+                    if configs is not None and len(configs) > 0:
+                        if configs[0][0] == small_fid and configs[-1][0] == big_fidelity:
+                            low_fid.append(configs[0][1])
+                            high_fid.append(configs[-1][1])
+
+                rco, p = spearmanr(low_fid, high_fid)
+                fidelity_comb_name = '%s-%s' % (int(small_fid), int(big_fidelity))
+                fidelities[fidelity_comb_name].append((rco, p))
+
+        path = os.path.join(os.path.expanduser(destination_dir), 'rc_over_datasets', method)
+        if os.path.exists(path):
+            if not os.path.isdir(path):
+                os.makedirs(path)
+        else:
+            os.makedirs(path)
+
+        temp_x = []
+        temp_y = []
+        for fidelity_combination in fidelities:
+            task_counter = 0
+            for task_value in fidelities[fidelity_combination]:
+                temp_x.append(default_task_dataset_sizes[task_counter])
+                # the first element is the rco
+                temp_y.append(task_value[0])
+                task_counter += 1
+
+            plt.scatter(temp_x, temp_y)
+            plt.xlabel("Dataset size")
+            plt.ylabel("Rank correlation %s" % fidelity_combination)
+            plt.rcParams['axes.unicode_minus'] = False
+            title = "Rank correlation %s over dataset size" % fidelity_combination
+            plt.title(title)
+            temp_x.clear()
+            temp_y.clear()
+
+            plt.savefig(
+                os.path.join(
+                    path,
+                    'rankcorrelation_%s.pdf' % fidelity_combination
+                ),
+                bbox_inches='tight'
+            )
+            plt.clf()
+    plt.close(fig)
+
+    with open(os.path.join(path, 'averaged_rc'), 'a') as fp:
+        for fidelity_combination in fidelities:
+            rc_fidelity_comb = [rc for rc, _ in fidelities[fidelity_combination] if not math.isnan(rc)]
+            p_fidelity_comb = [p for _, p in fidelities[fidelity_combination] if not math.isnan(p)]
+            fp.write('Rank correlaton %s, mean value %.3f, std %.3f\n'
+                     % (fidelity_combination, np.mean(rc_fidelity_comb), np.std(rc_fidelity_comb)))
+            fp.write('P value %s, mean value %.3f, std %.3f\n'
+                     % (fidelity_combination, np.mean(p_fidelity_comb), np.std(p_fidelity_comb)))
+
+# plot_rank_correlations_over_dataset_size('/home/kadraa/Documents/exp1-thesis', 'fcresnet', 'resnet_only_conditional', '/home/kadraa/Documents/exp1-thesis')
