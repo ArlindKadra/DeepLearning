@@ -456,13 +456,11 @@ def calculate_hp_importance_over_dataset_size(working_dir, network, destination_
 
             if len(X) > 0:
                 fanova_object = fANOVA(np.asarray(X), np.asarray(y), config_space)
-                importance_dict = fanova_object.quantify_importance((0,))
-                print(importance_dict[(0,)]['individual_importance'])
-
             else:
                 continue
             for hp in hp_names:
-                importance[hp].append(fanova_object.quantify_importance((hp,)))
+                importance_hp = fanova_object.quantify_importance((hp,)).get((hp,))
+                importance[hp].append(importance_hp['individual importance'])
             task_dataset_sizes.append(dataset_size_for_task[task_id])
         path = os.path.join(os.path.expanduser(destination_dir), 'importance_over_datasets', method)
         if os.path.exists(path):
@@ -474,7 +472,7 @@ def calculate_hp_importance_over_dataset_size(working_dir, network, destination_
         plt.xlabel("Dataset size")
         for hp in importance:
 
-            plt.scatter(importance[hp], task_dataset_sizes)
+            plt.scatter(task_dataset_sizes, importance[hp])
             plt.ylabel("Importance %s" % hp)
             plt.rcParams['axes.unicode_minus'] = False
             title = "Importance of  %s over dataset size" % hp
@@ -489,7 +487,7 @@ def calculate_hp_importance_over_dataset_size(working_dir, network, destination_
             plt.clf()
     plt.close(fig)
 
-calculate_hp_importance_over_dataset_size('/home/kadraa/Documents/exp1-thesis', 'fcresnet', '/home/kadraa/Documents/exp1-thesis')
+# calculate_hp_importance_over_dataset_size('/home/kadraa/Documents/exp1-thesis', 'fcresnet', '/home/kadraa/Documents/exp1-thesis')
 
 
 
@@ -516,7 +514,7 @@ def plot_rank_correlations_over_dataset_size(working_dir, network, method, desti
         high_fid = []
         runs = result.get_learning_curves()
 
-        budgets = [9.0, 27.0, 81.0, 243.0]
+        budgets = [30.0, 60.0, 120.0, 240.0]
         for i in range(0, len(budgets)):
             small_fid = budgets[i]
             for j in range(i + 1, len(budgets)):
@@ -580,4 +578,4 @@ def plot_rank_correlations_over_dataset_size(working_dir, network, method, desti
             fp.write('P value %s, mean value %.3f, std %.3f\n'
                      % (fidelity_combination, np.mean(p_fidelity_comb), np.std(p_fidelity_comb)))
 
-# plot_rank_correlations_over_dataset_size('/home/kadraa/Documents/exp1-thesis', 'fcresnet', 'resnet_only_conditional', '/home/kadraa/Documents/exp1-thesis')
+plot_rank_correlations_over_dataset_size('/home/kadraa/Documents/final_exp_thesis', 'fcresnet', 'resnet_only_cond64v2', '/home/kadraa/Documents/final_exp_thesis')
