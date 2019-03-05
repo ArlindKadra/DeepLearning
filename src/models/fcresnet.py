@@ -23,8 +23,6 @@ class FcResNet(nn.Module):
             )],
             int(nr_labels)
         )
-        self.softmax_layer = nn.Softmax(1)
-
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.xavier_normal_(m.weight, gain=nn.init.calculate_gain('relu'))
@@ -41,7 +39,7 @@ class FcResNet(nn.Module):
         out = self.relu(out)
         out = self.layers(out)
         out = self.fc_layer(out)
-        out = self.softmax_layer(out)
+        
         return out
 
     def _make_layer(self, num_res_blocks, input_features_res_block):

@@ -337,17 +337,24 @@ def train(config, network, num_epochs, x, y, set_indices):
     y_val = torch.from_numpy(y_val)
     y_val.requires_grad_(False)
     x_val, y_val = x_val.to(device), y_val.to(device)
+    
+    train_set_size = x_train.shape[0]
+    train_set_normal_indices = np.arange(0, train_set_size)
+    
 
     # loop over the dataset according to the number of epochs
     for epoch in range(0, num_epochs):
 
         running_loss = 0.0
         nr_batches = 0
-
+        # shuffled train for each epoch
+        updated_train_indices = np.random.permutation(train_set_normal_indices)
+        x_updated_train = x_train[updated_train_indices]
+        y_updated_train = y_train[updated_train_indices]
         # training the network
         network.train()
 
-        for i in range(0, (x_train.shape[0] - batch_size), batch_size):
+        for i in range(0, (x_updated_train.shape[0] - batch_size), batch_size):
 
             indices = np.arange(i, i + batch_size)
             shuffled_indices = np.random.permutation(indices)
@@ -357,11 +364,11 @@ def train(config, network, num_epochs, x, y, set_indices):
                 mixout_alpha = config['mixout_alpha']
                 lam = np.random.beta(mixout_alpha, mixout_alpha)
 
-            x = lam * x_train[indices] + \
-                (1 - lam) * x_train[shuffled_indices]
+            x = lam * x_updated_train[indices] + \
+                (1 - lam) * x_updated_train[shuffled_indices]
 
-            targets_a = y_train[indices]
-            targets_b = y_train[shuffled_indices]
+            targets_a = y_updated_train[indices]
+            targets_b = y_updated_train[shuffled_indices]
             targets_a = torch.from_numpy(targets_a).long()
             targets_b = torch.from_numpy(targets_b).long()
             targets_a = targets_a.to(device)

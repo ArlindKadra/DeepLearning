@@ -135,7 +135,7 @@ def plot_curves(working_dir):
 
         ax.set_ylabel("Validation Loss")
         ax.set_title("Top 5 configs for budget %d" % int(budget))
-        plt.xlim(0, 242)
+        plt.xlim(0, 240)
 
         for i in range(0, 4):
             plt.plot(ordered_val_curves[i], color='%s' % colors[color_index])
@@ -158,7 +158,7 @@ def plot_rank_correlations(working_dir):
     runs = result.get_learning_curves()
     fig = plt.figure(4)
 
-    budgets = [9.0, 27.0, 81.0, 243.0]
+    budgets = [30.0, 60.0, 120.0, 240.0]
     for i in range(0, len(budgets)):
         for j in range(i + 1, len(budgets)):
             small_fid = budgets[i]

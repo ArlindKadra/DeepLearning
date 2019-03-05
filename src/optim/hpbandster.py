@@ -10,6 +10,7 @@ import hpbandster.core.result as hpres
 from utilities.data import determine_feature_type
 from utilities.search_space import (
     get_fixed_fcresnet_config,
+    get_fixed_conditional_fcresnet_config,
     get_fixed_conditional_fc_config,
 )
 
@@ -41,10 +42,11 @@ class Master(object):
         nr_features = x.shape[1]
 
         if network == 'fcresnet':
-            config_space = get_fixed_fcresnet_config(
+            config_space = get_fixed_conditional_fcresnet_config(
                 nr_features,
                 feature_type,
                 num_res_blocks=4,
+                super_blocks=2,
                 nr_units=64
             )
         else:
@@ -136,16 +138,16 @@ class Slave(Worker):
 
         hardcoded_folds = \
             {
-                9: 2,
-                27: 4,
-                81: 6,
-                243: 10,
+                30: 2,
+                60: 3,
+                120: 4,
+                240: 5,
             }
         epochs = int(budget)
 
         # the budget is the number of epochs
         if configuration.fidelity == 'epochs':
-            nr_folds = 10
+            nr_folds = 5
         # the budget is the number of epochs
         # folds also given as fidelity
 

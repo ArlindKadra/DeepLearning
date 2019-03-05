@@ -19,7 +19,7 @@ def cross_validation(
         config,
         train_indices,
         test_indices,
-        nr_folds=10
+        nr_folds=5
 ):
     """Use cross validation to train the network.
 
@@ -49,7 +49,7 @@ def cross_validation(
     # np.random.seed(11)
     # shuffled_indices = np.random.permutation(indices)
 
-    skf = StratifiedKFold(n_splits=10, random_state=69)
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=69)
     x_train = x[train_indices]
     y_train = y[train_indices]
 

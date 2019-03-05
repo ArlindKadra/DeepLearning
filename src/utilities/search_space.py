@@ -692,9 +692,12 @@ def get_fixed_conditional_fcresnet_config(
 
     # nr units for input layer
     cs.add_hyperparameter(
-        ConfigSpace.Constant(
+        ConfigSpace.UniformIntegerHyperparameter(
             'input_layer_units',
-            nr_units
+            lower=8,
+            upper=256,
+            default_value=16,
+            log=True
         )
     )
 
@@ -702,9 +705,12 @@ def get_fixed_conditional_fcresnet_config(
     # since the configuration will actually be sampled.
     for i in range(1, super_blocks + 1):
         for j in range(1, layers_block + 1):
-            n_units = ConfigSpace.Constant(
+            n_units = ConfigSpace.UniformIntegerHyperparameter(
                 "num_units_%d_%d" % (i, j),
-                nr_units
+                lower=8,
+                upper=256,
+                default_value=16,
+                log=True
             )
             cs.add_hyperparameter(n_units)
 
