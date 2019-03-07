@@ -101,7 +101,7 @@ def main():
     split_indices = get_split_indices(args.task_id)
     time = int(time_tasks['%d' % args.task_id])
     method = algorithm(x, y, categorical, split_indices, args.task_id)
-    method.train(time)
+    method.train(time, args.run_id)
     accuracy = method.predict()
 
     path = os.path.expanduser(

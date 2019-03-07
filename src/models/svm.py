@@ -29,7 +29,7 @@ class SVM(object):
         logger.info("Started training AutoSklearn with %s estimator"
                     % SVM.get_name())
 
-    def build(self, time):
+    def build(self, time, run_id):
 
         validation_policy = {'cv': {'folds': 5, 'shuffle': True}}
 
@@ -37,18 +37,18 @@ class SVM(object):
             include_estimators=["libsvm_svc"],
             time_left_for_this_task=time,
             ensemble_size=1,
-            output_folder="autosklearn_exp/%s/%d/output" % (self.get_name(), self.task_id),
+            output_folder="autosklearn_exp/%s/%d/output/%d" % (self.get_name(), self.task_id, run_id),
             delete_output_folder_after_terminate=False,
-            tmp_folder="autosklearn_exp/%s/%d/tmp" % (self.get_name(), self.task_id),
+            tmp_folder="autosklearn_exp/%s/%d/tmp/%d" % (self.get_name(), self.task_id, run_id),
             delete_tmp_folder_after_terminate=False,
             resampling_strategy='cv',
             resampling_strategy_arguments=validation_policy,
             initial_configurations_via_metalearning=0
         )
 
-    def train(self, time):
+    def train(self, time, run_id):
 
-        svm = self.build(time)
+        svm = self.build(time, run_id)
         svm.fit(self.x_train, self.y_train, feat_type=self.feat_type)
         svm.refit(self.x_train, self.y_train)
         self.fitted_instance = svm
