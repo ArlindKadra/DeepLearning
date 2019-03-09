@@ -1,6 +1,7 @@
 import logging
 import autosklearn.classification
 from sklearn.metrics import accuracy_score
+import os
 
 class GradientBoosting(object):
     # Class which resembles an auto-sklearn gradient-boosting classifier
@@ -31,18 +32,22 @@ class GradientBoosting(object):
     def build(self, time, run_id):
 
         validation_policy = {'cv': {'folds': 5, 'shuffle': True}}
+        main_path = os.path.expanduser(os.path.join('autosklearn_exp', self.get_name(), '%d' % self.task_id))
+        output_path = os.path.join(main_path, 'output', str(run_id))
+        tmp_path = os.path.join(main_path, 'tmp', str(run_id))
 
         return autosklearn.classification.AutoSklearnClassifier(
             include_estimators=["gradient_boosting"],
             time_left_for_this_task=time,
             ensemble_size=1,
-            output_folder="autosklearn_exp/%s/%d/output/%d" % (self.get_name(), self.task_id, run_id),
-            delete_output_folder_after_terminate=False,
-            tmp_folder="autosklearn_exp/%s/%d/tmp/%d" % (self.get_name(), self.task_id, run_id),
-            delete_tmp_folder_after_terminate=False,
+            output_folder=output_path,
+            delete_output_folder_after_terminate=True,
+            tmp_folder=tmp_path,
+            delete_tmp_folder_after_terminate=True,
             resampling_strategy='cv',
             resampling_strategy_arguments=validation_policy,
-            initial_configurations_via_metalearning=0
+            initial_configurations_via_metalearning=0,
+            n_jobs=20
         )
 
     def train(self, time, run_id):

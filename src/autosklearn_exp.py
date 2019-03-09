@@ -7,6 +7,7 @@ import openml
 import logging
 import argparse
 import os
+import re
 
 
 def get_data(task_id):
@@ -94,14 +95,15 @@ def main():
     algorithm = algorithms[args.array_id]
     # TODO put verbose into configuration file
     verbose = True
-    setup_logging("AutoSklearn" + str(args.run_id) + "_" + str(args.array_id),
+    run_id = re.sub(r"\D+\d+(\d|\])*$", "", args.run_id)
+    setup_logging("AutoSklearn" + str(run_id) + "_" + str(args.array_id),
                   logging.DEBUG if verbose else logging.INFO)
 
     x, y, categorical = get_data(args.task_id)
     split_indices = get_split_indices(args.task_id)
     time = int(time_tasks['%d' % args.task_id])
     method = algorithm(x, y, categorical, split_indices, args.task_id)
-    method.train(time, args.run_id)
+    method.train(time, run_id)
     accuracy = method.predict()
 
     path = os.path.expanduser(
@@ -119,8 +121,8 @@ def main():
     else:
         os.makedirs(path)
 
-    with open(os.path.join(path, 'performance.txt'), 'w') as fp:
-        fp.write(str(accuracy))
+    with open(os.path.join(path, 'performance.txt'), 'a') as fp:
+        fp.write('%f\n' % accuracy)
 
 
 if __name__ == '__main__':
