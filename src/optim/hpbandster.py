@@ -7,7 +7,13 @@ from hpbandster.core.worker import Worker
 import hpbandster.core.nameserver as hpns
 import hpbandster.core.result as hpres
 
-from utilities.search_space import get_fcresnet_config, get_fc_config, get_fixed_fcresnet_config, get_fixed_fc_config
+from utilities.data import determine_feature_type
+from utilities.search_space import (
+    get_fixed_fcresnet_config,
+    get_fixed_conditional_fcresnet_config,
+    get_fixed_conditional_fc_config,
+)
+
 import openml_experiment
 import model
 import config as configuration
@@ -17,12 +23,38 @@ import utilities.regularization
 
 class Master(object):
 
-    def __init__(self, num_workers, num_iterations, run_id, array_id, working_dir, nic_name, network):
+    def __init__(
+            self,
+            num_workers,
+            num_iterations,
+            run_id,
+            array_id,
+            working_dir,
+            nic_name,
+            network,
+            min_budget,
+            max_budget,
+            eta
+    ):
+
+        x, y, categorical = model.get_dataset()
+        feature_type = determine_feature_type(categorical)
+        nr_features = x.shape[1]
 
         if network == 'fcresnet':
-            config_space = get_fixed_fcresnet_config()
+            config_space = get_fixed_conditional_fcresnet_config(
+                nr_features,
+                feature_type,
+                num_res_blocks=4,
+                super_blocks=2,
+                nr_units=64
+            )
         else:
-            config_space = get_fixed_fc_config()
+            config_space = get_fixed_conditional_fc_config(
+                nr_features,
+                feature_type,
+                max_nr_layers=9
+            )
 
         if array_id == 1:
 
@@ -38,20 +70,25 @@ class Master(object):
             worker = Slave(nameserver=ns_host, nameserver_port=ns_port, run_id=run_id)
             worker.run(background=True)
 
-            hb = BOHB(configspace=config_space,
-                      run_id=run_id,
-                      eta=3, min_budget=9, max_budget=243,
-                      host=ns_host,
-                      nameserver=ns_host,
-                      result_logger=result_logger,
-                      nameserver_port=ns_port,
-                      ping_interval=3600
-                      )
+            hb = BOHB(
+                configspace=config_space,
+                run_id=run_id,
+                eta=eta,
+                min_budget=min_budget,
+                max_budget=max_budget,
+                host=ns_host,
+                nameserver=ns_host,
+                result_logger=result_logger,
+                nameserver_port=ns_port,
+                ping_interval=3600
+            )
 
-            res = hb.run(n_iterations=num_iterations,
-                         min_n_workers=num_workers
-                         # BOHB can wait until a minimum number of workers is online before starting
-                         )
+            # BOHB can wait until a minimum number of workers
+            # is online before starting
+            res = hb.run(
+                n_iterations=num_iterations,
+                min_n_workers=num_workers
+            )
 
             # pickle result here for later analysis
             with open(os.path.join(working_dir, 'results.pkl'), 'wb') as fh:
@@ -69,8 +106,18 @@ class Master(object):
 
             # workers only instantiate the Slave, find the nameserver and start serving
             w = Slave(run_id=run_id, host=host)
-            w.load_nameserver_credentials(working_dir)
-            # run worker in the forground,
+            while True:
+                try:
+                    w.load_nameserver_credentials(working_dir)
+                    break
+                except RuntimeError as e:
+                    # do nothing
+                    # wait until configuration is
+                    # found
+                    pass
+
+
+            # run worker in the foreground,
             w.run(background=False)
 
 
@@ -85,18 +132,57 @@ class Slave(Worker):
         Args:
             config: A hyperparameter configuration drawn from the ConfigSpace.
             budget: budget on which the training of the network will be limited.
-            k_fold_validation: Flag to control cross validation.
         """
         x, y, _ = model.get_dataset()
+        train_indices, test_indices = model.get_split_indices()
+
+        hardcoded_folds = \
+            {
+                30: 2,
+                60: 3,
+                120: 4,
+                240: 5,
+            }
+        epochs = int(budget)
+
+        # the budget is the number of epochs
+        if configuration.fidelity == 'epochs':
+            nr_folds = 5
+        # the budget is the number of epochs
+        # folds also given as fidelity
+
+        elif configuration.fidelity == 'both':
+            nr_folds = hardcoded_folds[epochs]
 
         if configuration.cross_validation:
-            output = utilities.regularization.cross_validation(int(budget), x, y, config)
+            output = utilities.regularization.cross_validation(
+                epochs,
+                x,
+                y,
+                config,
+                train_indices,
+                test_indices,
+                nr_folds=nr_folds
+            )
+            val_accuracy = output['val_accuracy']
+
         else:
-            set_indices = utilities.data.determine_input_sets(len(x))
+            x_train_split = x[train_indices]
+            y_train_split = y[train_indices]
+            training_indices, validation_indices = \
+                utilities.data.determine_stratified_val_set(
+                    x_train_split,
+                    y_train_split
+                )
+            set_indices = (
+                training_indices,
+                validation_indices,
+                test_indices
+            )
             output = openml_experiment.train(
                 config,
                 configuration.network_type,
-                int(budget),
+                epochs,
                 x,
                 y,
                 set_indices
@@ -113,7 +199,8 @@ class Slave(Worker):
                 'test_loss': test_loss,
                 'test_accuracy': test_accuracy,
                 'val_loss': val_loss_epochs,
-                'train_loss': list(train_loss_epochs)
+                'train_loss': list(train_loss_epochs),
+                'nr_epochs': epochs
             }
 
         if configuration.predictive_measure == 'loss':

@@ -3,10 +3,11 @@ import numpy as np
 import math
 import logging
 
-class CosineScheduler:
+
+class CosineScheduler(object):
 
     def __init__(self, optimizer, nr_epochs,
-                 weight_decay= False, restart=False):
+                 weight_decay=False, restart=False):
 
         if not isinstance(optimizer, Optimizer):
             raise TypeError('{} is not an Optimizer'.format(
@@ -16,8 +17,9 @@ class CosineScheduler:
         self.restart = restart
         self.weight_decay = weight_decay
         self.nr_epochs = nr_epochs
-        self.anneal_max_epoch = int(1 / 3 * nr_epochs)
+        self.anneal_max_epoch = math.ceil(1 / 10 * nr_epochs)
         self.anneal_multiply = 2
+        self.anneal_epoch = 0
 
         for group in optimizer.param_groups:
             group.setdefault('initial_lr', group['lr'])
@@ -28,23 +30,38 @@ class CosineScheduler:
     # Starting from epoch 0
     def step(self, epoch):
 
+        # TODO refactor the usage of epoch
         # the cosine annealing case
         if self.restart:
-            if epoch > self.anneal_max_epoch:
+            if self.anneal_epoch > self.anneal_max_epoch:
                 logger = logging.getLogger(__name__)
                 logger.error("Something went wrong, epochs "
                              "> max epochs in restart")
                 raise ValueError("Something went wrong, epochs "
                                  "> max epochs in restart")
 
-            if epoch == self.anneal_max_epoch:
+            if self.anneal_epoch == self.anneal_max_epoch:
+                self.anneal_epoch = 0
+                self.nr_epochs -= self.anneal_max_epoch
                 decay = 1
-                self.anneal_max_epoch = self.anneal_max_epoch * \
+                # can it handle one restart
+                if self.nr_epochs >= self.anneal_max_epoch * self.anneal_multiply:
+                    self.anneal_max_epoch = self.anneal_max_epoch * \
                                             self.anneal_multiply
+                    # can it handle two restarts
+                    if self.nr_epochs >= (self.anneal_max_epoch + self.anneal_max_epoch * self.anneal_multiply):
+                        # it can handle two restarts
+                        pass
+                    else:
+                        self.anneal_max_epoch = self.nr_epochs
+                # should never reach here
+                else:
+                    self.anneal_max_epoch = self.nr_epochs
             else:
                 decay = 0.5 * (1.0 + np.cos(
-                    np.pi * (epoch / self.anneal_max_epoch)
+                    np.pi * (self.anneal_epoch / self.anneal_max_epoch)
                 ))
+            self.anneal_epoch += 1
         # Cosine Decay
         else:
             decay = 0.5 * (1.0 + np.cos(
@@ -57,9 +74,9 @@ class CosineScheduler:
                 param_group['weight_decay'] = param_group['initial_weight_decay'] * decay
 
 
-class ExponentialScheduler:
+class ExponentialScheduler(object):
 
-    def __init__(self, optimizer, weight_decay=False):
+    def __init__(self, optimizer, nr_epochs, final_fraction, weight_decay=False):
 
         if not isinstance(optimizer, Optimizer):
             raise TypeError('{} is not an Optimizer'.format(
@@ -67,7 +84,7 @@ class ExponentialScheduler:
 
         self.optimizer = optimizer
         self.weight_decay = weight_decay
-        self.gamma = math.e
+        self.beta = nr_epochs / -np.log(final_fraction)
 
         for group in optimizer.param_groups:
             group.setdefault('initial_lr', group['lr'])
@@ -77,7 +94,7 @@ class ExponentialScheduler:
     # Starting from epoch 0
     def step(self, epoch):
 
-        decay = self.gamma ** (-epoch)
+        decay = np.exp(-epoch / self.beta)
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = param_group['initial_lr'] * decay
             if self.weight_decay:
@@ -86,7 +103,13 @@ class ExponentialScheduler:
 
 class ScheduledOptimizer(object):
 
-    def __init__(self, optimizer, nr_epochs, weight_decay, scheduler=None):
+    def __init__(self,
+                 optimizer,
+                 nr_epochs,
+                 weight_decay,
+                 scheduler=None,
+                 final_fraction=0.1
+                 ):
 
         self.optimizer = optimizer
         if scheduler is not None:
@@ -107,6 +130,8 @@ class ScheduledOptimizer(object):
             elif scheduler == 'exponential_decay':
                 self.scheduler = ExponentialScheduler(
                     optimizer,
+                    nr_epochs,
+                    final_fraction,
                     weight_decay=weight_decay
                 )
             else:
@@ -117,10 +142,12 @@ class ScheduledOptimizer(object):
         else:
             self.scheduler = None
 
-    def step(self, epoch):
+    def step_scheduler(self, epoch):
 
         if self.scheduler is not None:
             self.scheduler.step(epoch)
+
+    def step_optim(self):
         self.optimizer.step()
 
     def state_dict(self):

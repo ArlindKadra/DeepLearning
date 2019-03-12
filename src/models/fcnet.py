@@ -13,9 +13,7 @@ class FcNet(nn.Module):
         self.softmax_layer = nn.Softmax(1)
 
         for m in self.modules():
-            if isinstance(m, nn.Linear):
-                m.bias.data.zero_()
-            elif isinstance(m, nn.BatchNorm1d):
+            if isinstance(m, nn.BatchNorm1d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
@@ -40,20 +38,23 @@ class BasicBlock(nn.Module):
     def __init__(self, in_features, config, block_nr):
 
         super(BasicBlock, self).__init__()
-        self.dropout = True if config['activate_dropout'] == 'Yes' else False
+        self.dropout_activated = True if config['activate_dropout'] == 'Yes' else False
+        self.batch_norm_activated = True if config['activate_batch_norm'] == 'Yes' else False
         self.training = True
         self.linear = nn.Linear(in_features, config['num_units_%i' % block_nr])
         self.relu = nn.ReLU(inplace=True)
-        if self.dropout:
+        if self.dropout_activated:
             self.dropout = nn.Dropout(p=config['dropout_%i' % block_nr])
-        self.batch_norm = nn.BatchNorm1d(config['num_units_%i' % block_nr])
+        if self.batch_norm_activated:
+            self.batch_norm = nn.BatchNorm1d(config['num_units_%i' % block_nr])
 
     def forward(self, x):
 
         out = self.linear(x)
         out = self.relu(out)
-        if self.dropout:
+        if self.dropout_activated:
             out = self.dropout(out)
-        out = self.batch_norm(out)
+        if self.batch_norm_activated:
+            out = self.batch_norm(out)
 
         return out

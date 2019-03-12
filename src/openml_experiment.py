@@ -25,15 +25,59 @@ from models.fcnet import FcNet
 def main():
 
     parser = argparse.ArgumentParser(description='Fully connected residual network')
-    parser.add_argument('--num_workers', help='Number of hyperband workers.', default=4, type=int)
-    parser.add_argument('--num_iterations', help='Number of hyperband iterations.', default=4, type=int)
-    parser.add_argument('--run_id', help='unique id to identify the HPB run.', default='HPB_example_2', type=str)
-    parser.add_argument('--array_id', help='SGE array id to tread one job array as a HPB run.', default=1, type=int)
-    parser.add_argument('--working_dir', help='working directory to store live data.', default='.', type=str)
-    parser.add_argument('--nic_name', help='name of the Network Interface Card.', default='lo', type=str)
-    parser.add_argument('--network_type', help='network to be used for the task.', default='fcresnet', type=str)
-    parser.add_argument('--cluster_workload', help='Workload management package.', default='slurm', type=str)
-    parser.add_argument('--cross_validation', help='Cross-Validation flag', default=False, type=bool)
+    parser.add_argument(
+        '--num_workers',
+        help='Number of BOHB workers.',
+        default=1,
+        type=int
+    )
+    parser.add_argument(
+        '--num_iterations',
+        help='Number of BOHB iterations.',
+        default=4,
+        type=int
+    )
+    parser.add_argument(
+        '--run_id',
+        help='unique id to identify the BOHB run.',
+        default='BOHB_Autonet',
+        type=str
+    )
+    parser.add_argument(
+        '--array_id',
+        help='SGE array id to tread one job array as a HPB run.',
+        default=1,
+        type=int
+    )
+    parser.add_argument(
+        '--working_dir',
+        help='working directory to store live data.',
+        default='.',
+        type=str)
+    parser.add_argument(
+        '--nic_name',
+        help='name of the Network Interface Card.',
+        default='lo',
+        type=str
+    )
+    parser.add_argument(
+        '--network_type',
+        help='network to be used for the task.',
+        default='fcresnet',
+        type=str
+    )
+    parser.add_argument(
+        '--cluster_workload',
+        help='Workload management package.',
+        default='slurm',
+        type=str
+    )
+    parser.add_argument(
+        '--cross_validation',
+        help='Cross-Validation flag',
+        default=False,
+        type=bool
+    )
     parser.add_argument(
         '--predictive_measure',
         help='Measure which will be passed to the hyperparameter '
@@ -41,12 +85,42 @@ def main():
         default='loss',
         type=str
     )
-    parser.add_argument('--task_id', help='Task id so that the dataset can be retrieved from OpenML.',
-                        default=3, type=int)
+    parser.add_argument(
+        '--task_id',
+        help='Task id so that the dataset can be retrieved from OpenML.',
+        default=3,
+        type=int
+    )
+    parser.add_argument(
+        '--fidelity',
+        help='Fidelity to be used by BOHB.',
+        default='epochs',
+        type=str
+    )
+    parser.add_argument(
+        '--max_budget',
+        help='Max budget for BOHB',
+        default=243,
+        type=int
+    )
+    parser.add_argument(
+        '--min_budget',
+        help='Min budget for BOHB',
+        default=9,
+        type=int
+    )
+    parser.add_argument(
+        '--eta',
+        help='ETA for BOHB, fraction of configurations that '
+             'pass in the next round of succesive halving ',
+        default=3,
+        type=int
+    )
 
     args = parser.parse_args()
     config.predictive_measure = args.predictive_measure
     config.network_type = args.network_type
+    config.fidelity = args.fidelity
     config.cross_validation = args.cross_validation
     # initialize logging
     logger = logging.getLogger(__name__)
@@ -63,14 +137,37 @@ def main():
         run_id = re.sub(r"\D+\d+(\d|\])*$", "", args.run_id)
 
     log.setup_logging(run_id + "_" + str(args.array_id), logging.DEBUG if verbose else logging.INFO)
-    logger.info('DeepResNet Experiment started')
+    logger.info('Experiment started')
     model.Loader(args.task_id)
     working_dir = os.path.join(args.working_dir, 'task_%i' % model.get_task_id(), args.network_type)
+    # Log to disk, network type,
+    # task id to run id
+    # in case of failure
+    if args.array_id == 1:
+        log.map_job_to_task(
+            args.working_dir,
+            run_id,
+            model.get_task_id(),
+            args.network_type
+        )
+
     start_time = time.time()
-    optim.hpbandster.Master(args.num_workers, args.num_iterations, run_id, args.array_id, working_dir, args.nic_name, args.network_type)
+    optim.hpbandster.Master(
+        args.num_workers,
+        args.num_iterations,
+        run_id,
+        args.array_id,
+        working_dir,
+        args.nic_name,
+        args.network_type,
+        args.min_budget,
+        args.max_budget,
+        args.eta
+    )
     end_time = time.time()
     duration = (end_time - start_time) / 60
-    
+
+    # Do the following only for the master
     if args.array_id == 1:
 
         log.general_info(working_dir, duration)
@@ -83,38 +180,69 @@ def main():
 def train(config, network, num_epochs, x, y, set_indices):
 
     logger = logging.getLogger(__name__)
+
     dataset_categorical = model._categorical
     # number of dataset classes
     nr_classes = max(y) + 1
 
-    # unpack set indices
+    # The below train and val
+    # indices are for the train split
+    # and not for the whole dataset.
+    # training set
     train_indices = set_indices[0]
+    # validation set
     val_indices = set_indices[1]
     test_indices = set_indices[2]
 
+    # the original training data split
+    # and test data indices from OpenML
+    train_split_indices, test_split_indices \
+        = model.get_split_indices()
+
+    x_train_split = x[train_split_indices]
+
+    # Feature normalization
+
     # calculate mean and std for train set
-    x_train = x[train_indices]
-    mean, std = data.calculate_stat(x_train)
+    mean, std = data.calculate_stat(x_train_split[train_indices])
+
     x = data.feature_normalization(x, mean, std, dataset_categorical)
 
-    # Deal with categorical attributes
-    if True in dataset_categorical:
+    # feature preprocessing
+    if config['feature_preprocessing'] == 'Yes':
 
-        enc = OneHotEncoder(categorical_features=dataset_categorical, dtype=np.float32)
-        x = enc.fit_transform(x).todense()
+        x = regularization.feature_preprocessing(
+            config['feature_type'],
+            config['pca_components'],
+            x,
+            x_train_split,
+            train_indices
+        )
+    else:
+        # Deal with categorical attributes
+        if True in dataset_categorical:
+            enc = OneHotEncoder(categorical_features=dataset_categorical, dtype=np.float32)
+            x = enc.fit_transform(x).todense()
 
-    x_train = x[train_indices]
-    x_val = x[val_indices]
+    # Update training split obtained from
+    # OpenML again after the above operations.
+
+    x_train_split = x[train_split_indices]
+    y_train_split = y[train_split_indices]
+    x_train = x_train_split[train_indices]
+    x_val = x_train_split[val_indices]
     x_test = x[test_indices]
-    y_train = y[train_indices]
-    y_val = y[val_indices]
+    y_train = y_train_split[train_indices]
+    y_val = y_train_split[val_indices]
     y_test = y[test_indices]
 
     # Get the batch size
     batch_size = config["batch_size"]
 
-    device = torch.device("cuda"
-                          if torch.cuda.is_available() else "cpu")
+    device = torch.device(
+        "cuda"
+        if torch.cuda.is_available() else "cpu"
+    )
 
     if network == 'fcresnet':
         network = FcResNet(
@@ -135,7 +263,14 @@ def train(config, network, num_epochs, x, y, set_indices):
                        p in network.parameters() if p.requires_grad)
     logger.info("Number of network parameters %d", total_params)
 
-    criterion = nn.CrossEntropyLoss()
+    if config['class_weights'] == 'Yes':
+        class_weights = data.calculate_class_weights(y_train_split[train_indices])
+        class_weights = torch.from_numpy(class_weights).float()
+    else:
+        class_weights = None
+
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
+
     weight_decay = 0
     if 'weight_decay' in config:
         weight_decay = config['weight_decay']
@@ -177,11 +312,16 @@ def train(config, network, num_epochs, x, y, set_indices):
                      ", Adam and AdamW")
         raise ValueError("Unexpected optimizer value")
 
+    fraction = False
+    if 'final_lr_fraction' in config:
+        fraction = True
+
     scheduled_optimizer = ScheduledOptimizer(
         optimizer,
         num_epochs,
         True if weight_decay != 0 else False,
-        config['decay_type']
+        config['decay_type'],
+        config['final_lr_fraction'] if fraction else None
     )
     logger.info('FcResNet started training')
 
@@ -197,16 +337,24 @@ def train(config, network, num_epochs, x, y, set_indices):
     y_val = torch.from_numpy(y_val)
     y_val.requires_grad_(False)
     x_val, y_val = x_val.to(device), y_val.to(device)
+    
+    train_set_size = x_train.shape[0]
+    train_set_normal_indices = np.arange(0, train_set_size)
+    
 
     # loop over the dataset according to the number of epochs
     for epoch in range(0, num_epochs):
 
         running_loss = 0.0
         nr_batches = 0
-        # train the network
+        # shuffled train for each epoch
+        updated_train_indices = np.random.permutation(train_set_normal_indices)
+        x_updated_train = x_train[updated_train_indices]
+        y_updated_train = y_train[updated_train_indices]
+        # training the network
         network.train()
 
-        for i in range(0, (x_train.shape[0] - batch_size), batch_size):
+        for i in range(0, (x_updated_train.shape[0] - batch_size), batch_size):
 
             indices = np.arange(i, i + batch_size)
             shuffled_indices = np.random.permutation(indices)
@@ -216,11 +364,11 @@ def train(config, network, num_epochs, x, y, set_indices):
                 mixout_alpha = config['mixout_alpha']
                 lam = np.random.beta(mixout_alpha, mixout_alpha)
 
-            x = lam * x_train[indices] + \
-                (1 - lam) * x_train[shuffled_indices]
+            x = lam * x_updated_train[indices] + \
+                (1 - lam) * x_updated_train[shuffled_indices]
 
-            targets_a = y_train[indices]
-            targets_b = y_train[shuffled_indices]
+            targets_a = y_updated_train[indices]
+            targets_b = y_updated_train[shuffled_indices]
             targets_a = torch.from_numpy(targets_a).long()
             targets_b = torch.from_numpy(targets_b).long()
             targets_a = targets_a.to(device)
@@ -240,38 +388,45 @@ def train(config, network, num_epochs, x, y, set_indices):
                 raise ValueError("NaN value in output")
 
             loss = loss_function(criterion, output)
-
             loss.backward()
             running_loss += loss.item()
             nr_batches += 1
+            scheduled_optimizer.step_optim()
+
+        # finished with the batch iterations
+        # reached end of epoch
+        scheduled_optimizer.step_scheduler(epoch)
+        network_train_loss.append(running_loss / nr_batches)
 
         # Using validation data
         network.eval()
 
-        correct = 0
-        total = 0
-        outputs = network(x_val)
-        val_loss = criterion(outputs, y_val).item()
+        with torch.no_grad():
 
-        # bad configuration, stop training
-        # add -1 as the loss for the validation
-        # and test
-        if np.isnan(val_loss):
-            network_val_loss.append(math.inf)
-            return {
-                'test': (math.inf, 0),
-                'validation': (network_val_loss, 0),
-                'train': network_train_loss
-            }
+            correct = 0
+            total = 0
+            outputs = network(x_val)
+            val_loss = criterion(outputs, y_val).item()
 
-        _, predicted = torch.max(outputs.data, 1)
-        total += y_val.size(0)
-        correct += ((predicted == y_val).sum()).item()
-        val_accuracy = 100 * correct / total
+            # bad configuration, stop training
+            # add -1 as the loss for the validation
+            # and test
+            if np.isnan(val_loss):
+                network_val_loss.append(math.inf)
+                return {
+                    'test': (math.inf, 0),
+                    'validation': (network_val_loss, 0),
+                    'train': network_train_loss
+                }
 
-        network_train_loss.append(running_loss / nr_batches)
+            _, predicted = torch.max(outputs.data, 1)
+            total += y_val.size(0)
+            correct += ((predicted == y_val).sum()).item()
+            val_accuracy = 100 * correct / total
+
         network_val_loss.append(val_loss)
         network_val_accuracy.append(val_accuracy)
+
         logger.info(
             'Epoch %d, Train loss: %.3f, '
             'Validation loss: %.3f, accuracy %.3f',
@@ -289,14 +444,15 @@ def train(config, network, num_epochs, x, y, set_indices):
             scheduled_optimizer.get_weight_decay()
         )
 
-        scheduled_optimizer.step(epoch)
-
+    # testing part
     with torch.no_grad():
+
         correct = 0
         total = 0
         x_test = torch.from_numpy(x_test).float()
         y_test = torch.from_numpy(y_test).long()
         x_test, y_test = x_test.to(device), y_test.to(device)
+        # reconfirming, although it is set in validation
         network.eval()
         outputs = network(x_test)
         test_loss = criterion(outputs, y_test)
@@ -308,7 +464,8 @@ def train(config, network, num_epochs, x, y, set_indices):
     output_information = {
         'test': (test_loss.item(), accuracy),
         'validation': (network_val_loss, network_val_accuracy),
-        'train': network_train_loss
+        'train': network_train_loss,
+        'nr_epochs': num_epochs
     }
     return output_information
 

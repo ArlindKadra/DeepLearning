@@ -3,14 +3,24 @@ import math
 import torch
 from torch.autograd import Function
 import numpy as np
-from sklearn.model_selection import KFold
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import OneHotEncoder
+import prince
 
 import openml_experiment
 import config as configuration
 
 
-def cross_validation(nr_epochs, x, y, config, nr_folds=10):
+def cross_validation(
+        nr_epochs,
+        x,
+        y,
+        config,
+        train_indices,
+        test_indices,
+        nr_folds=5
+):
     """Use cross validation to train the network.
 
     Args:
@@ -18,6 +28,9 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
         x: Input.
         y: Labels.
         config: ConfigSpace configuration
+        train_indices: Indices of the training set.
+        Includes training and validation set.
+        test_indices: Indices of the test set.
         nr_folds: Number of cross-validation folds.
 
     Returns:
@@ -32,21 +45,27 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
 
     # Shuffle data before, otherwise the results on some tasks were confusing.
     # Validation had similiar loss to the training data while test data had a very high one.
-    indices = np.arange(0, len(x))
-    np.random.seed(11)
-    shuffled_indices = np.random.permutation(indices)
+    # indices = np.arange(0, len(x))
+    # np.random.seed(11)
+    # shuffled_indices = np.random.permutation(indices)
 
-    kf = KFold(n_splits=nr_folds)
-    x = x[shuffled_indices]
-    y = y[shuffled_indices]
-    for train_indices, test_indices in kf.split(x):
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=69)
+    x_train = x[train_indices]
+    y_train = y[train_indices]
+
+    # if there is a fidelity for folds,
+    # only use the required amount
+    counter_folds = 0
+
+    for train_set, validation_set in skf.split(x_train, y_train):
+
+        # if there is a fidelity for folds
+        # trigger break when we achieve the nr
+        if counter_folds == nr_folds:
+            break
 
         # calculate the size of the validation fold
-        val_fold_size = int((1 / (nr_folds - 1)) * len(train_indices))
-        val_indices  = train_indices[0:val_fold_size]
-        # calculate the refined train fold size
-        refined_train_indices = train_indices[val_fold_size:]
-        set_indices = (refined_train_indices, val_indices, test_indices)
+        set_indices = (train_set, validation_set, test_indices)
         output = openml_experiment.train(
             config, 
             configuration.network_type,
@@ -60,19 +79,25 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
         # otherwise there is no point in running
         # cross validation on a bad config
         if (output['validation'][0])[-1] is math.inf:
+
             return {
                 'train_loss': output['train'],
                 'val_loss': output['validation'][0],
                 'val_accuracy': output['validation'][1],
                 'test_loss': math.inf,
                 'test_accuracy': 0
-        }
+            }
 
         train_loss_epochs.append(output['train'])
         val_loss_epochs.append(output['validation'][0])
         val_accuracy.append(output['validation'][1])
         test_loss += output['test'][0]
         test_accuracy += output['test'][1]
+
+        # if there is a fidelity for folds
+        # count the fold we are at
+        if nr_folds != 10:
+            counter_folds += 1
 
     train_loss_epochs = np.array(train_loss_epochs)
     train_loss_min = np.amin(train_loss_epochs, axis=0)
@@ -96,8 +121,10 @@ def cross_validation(nr_epochs, x, y, config, nr_folds=10):
         'val_loss': val_loss_epochs.tolist(),
         'val_loss_min': val_loss_min.tolist(),
         'val_loss_max': val_loss_max.tolist(),
+        'val_accuracy': val_accuracy.tolist(),
         'test_loss': test_loss,
-        'test_accuracy': test_accuracy
+        'test_accuracy': test_accuracy,
+        'nr_epochs': output['nr_epochs']
     }
 
     return result
@@ -150,7 +177,8 @@ def get_alpha_beta(batch_size, shake_config, is_cuda):
     :return:
         The 2 constants alpha and beta.
     """
-    forward_shake, backward_shake, shake_image = shake_config
+    forward_shake, backward_shake, shake_image = \
+        decode_shake_shake_config(shake_config)
 
     # TODO Current implementation does not support shake even
 
@@ -173,3 +201,38 @@ def get_alpha_beta(batch_size, shake_config, is_cuda):
         beta = beta.cuda()
 
     return alpha, beta
+
+
+def decode_shake_shake_config(config_string):
+
+    shake_shake_config = {
+        'YYY': (True, True, True),
+        'YNY': (True, False, True),
+        'YYN': (True, True, False),
+        'YNN': (True, False, False),
+        'NNN': (False, False, False)
+    }
+
+    return shake_shake_config[config_string]
+
+
+def feature_preprocessing(
+        feature_type,
+        nr_components,
+        x,
+        train_split,
+        train_indices
+):
+
+    if feature_type == 'numerical':
+        procedure = PCA
+    elif feature_type == 'categorical':
+        procedure = prince.MCA
+    else:
+        procedure = prince.FAMD
+
+    procedure = procedure(n_components=nr_components)
+    procedure = procedure.fit(train_split[train_indices])
+    x = procedure.transform(x)
+
+    return np.asarray(x)

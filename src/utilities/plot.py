@@ -4,14 +4,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set()
 
-from collections import OrderedDict
 import os
 import pickle
 import json
 import math
 
 from scipy.stats import spearmanr
-import numpy as np
 
 
 def load_data(working_dir):
@@ -31,21 +29,23 @@ def load_data(working_dir):
                 _ = result['info']
                 val_loss_epochs = _['val_loss']
                 test_loss = _['test_loss']
+                # append test set result for budget
+                if budget not in accuracies:
+                    accuracies[budget] = []
+                if not math.isinf(test_loss):
+                    accuracies[budget].append(test_loss)
+
+                # create dict for each budget
+                if budget not in val_losses:
+                    val_losses[budget] = {}
+                # for each budget add dicts with test loss as key and
+                # val loss over epochs
+                val_losses[budget][test_loss] = val_loss_epochs
             else:
-                raise ValueError("Empty Info field for the worker run")
-
-            # append test set result for budget
-            if budget not in accuracies:
-                accuracies[budget] = []
-            if not math.isinf(test_loss):
-                accuracies[budget].append(test_loss)
-
-            # create dict for each budget
-            if budget not in val_losses:
-                val_losses[budget] = {}
-            # for each budget add dicts with test loss as key and
-            # val loss over epochs
-            val_losses[budget][test_loss] = val_loss_epochs
+                # Sometimes the worker dies unexpectedly
+                # better to just pass here
+                # raise ValueError("Empty Info field for the worker run")
+                pass
 
         return accuracies, val_losses
 
@@ -61,14 +61,17 @@ def test_loss_over_budgets(working_dir):
     for budget, values in accuracies.items():
         data_plot.append(values)
     plt.boxplot(data_plot)
-    ax.set_xticklabels(['9', '27', '81', '243'])
+
+    budgets = list(accuracies.keys())
+    budgets.sort()
+    ax.set_xticklabels(budgets)
     ax.get_xaxis().tick_bottom()
     ax.get_yaxis().tick_left()
     ax.set_xlabel("Budget (epochs)")
     ax.set_ylabel("Test Loss")
     # plt.show()
     # Save the figure
-    plt.savefig(os.path.join(working_dir, 'budget_test_loss.png'), bbox_inches='tight')
+    plt.savefig(os.path.join(working_dir, 'budget_test_loss.pdf'), bbox_inches='tight')
     plt.close(fig)
 
 
@@ -82,7 +85,7 @@ def best_conf_val_loss(working_dir):
     runs = result.get_runs_by_id(run_id)
     best_run = runs[-1]
     info = best_run.info
-    budget = int(best_run.budget)
+    budget = int(info['nr_epochs'])
     epochs = [x for x in range(1, budget + 1)]
     validation_curve = info['val_loss']
     train_curve = info['train_loss']
@@ -97,7 +100,7 @@ def best_conf_val_loss(working_dir):
         min_val_curve = info['val_loss_min']
         max_val_curve = info['val_loss_max']
         plt.fill_between(epochs, min_train_curve, max_train_curve, color='#1b07fc', alpha=0.2)
-        plt.fill_between(epochs, min_val_curve, max_val_curve, '#f92418', alpha=0.2)
+        plt.fill_between(epochs, min_val_curve, max_val_curve, color='#f92418', alpha=0.2)
 
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Loss")
@@ -105,7 +108,7 @@ def best_conf_val_loss(working_dir):
     ax.legend(loc='best')
     # plt.show()
     # Save the figure
-    plt.savefig(os.path.join(working_dir, 'validation_curve.png'), bbox_inches='tight')
+    plt.savefig(os.path.join(working_dir, 'validation_curve.pdf'), bbox_inches='tight')
     plt.close(fig)
 
 
@@ -132,7 +135,7 @@ def plot_curves(working_dir):
 
         ax.set_ylabel("Validation Loss")
         ax.set_title("Top 5 configs for budget %d" % int(budget))
-        plt.xlim(0, 242)
+        plt.xlim(0, 240)
 
         for i in range(0, 4):
             plt.plot(ordered_val_curves[i], color='%s' % colors[color_index])
@@ -141,7 +144,7 @@ def plot_curves(working_dir):
         plot_index += 1
 
     # plt.show()
-    plt.savefig(os.path.join(working_dir, 'top_curves.png'), bbox_inches='tight')
+    plt.savefig(os.path.join(working_dir, 'top_curves.pdf'), bbox_inches='tight')
     plt.close(fig)
 
 
@@ -150,39 +153,40 @@ def plot_rank_correlations(working_dir):
     with open(os.path.join(working_dir, "results.pkl"), "rb") as fp:
         result = pickle.load(fp)
 
-    values = OrderedDict()
-    fig = plt.figure(4)  # an empty figure with no axes
+    low_fid = []
+    high_fid = []
     runs = result.get_learning_curves()
+    fig = plt.figure(4)
 
-    # for each run a dict of config ids as keys and
-    # a list of lists. The inner list contains tuples
-    # with budget and loss
-    for conf_id in runs.keys():
-        # get the inner list
-        configs = runs[conf_id][0]
-        # this config was run for all budgets
-        if len(configs) == 4:
-            for config in configs:
-                if config[0] not in values:
-                    values[config[0]] = []
-                values[config[0]].append(config[1])
+    budgets = [30.0, 60.0, 120.0, 240.0]
+    for i in range(0, len(budgets)):
+        for j in range(i + 1, len(budgets)):
+            small_fid = budgets[i]
+            big_fidelity = budgets[j]
+            # for each run a dict of config ids as keys and
+            # a list of lists. The inner list contains tuples
+            for conf_id in runs.keys():
+                # get the inner list
+                configs = runs[conf_id][0]
+                if configs[0][0] == small_fid and configs[-1][0] == big_fidelity:
+                    low_fid.append(configs[0][1])
+                    high_fid.append(configs[-1][1])
+            plt.scatter(low_fid, high_fid)
+            plt.xlabel("%.0f" % small_fid)
+            plt.ylabel("%.0f" % big_fidelity)
+            rco, p = spearmanr(low_fid, high_fid)
+            title = "Fidelity %.0f, %.0f \n" \
+                    "Rank correlation %f (p value %f)" % (small_fid, big_fidelity, rco, p)
+            plt.title(title)
+            low_fid.clear()
+            high_fid.clear()
 
-    budgets = values.keys()
-    rho, _ = spearmanr([losses for key, losses in values.items()], axis=1)
-    mask = np.zeros_like(rho)
-    # remove redudant information since the matrix is symmetrical
-    mask[np.triu_indices_from(mask)] = True
-    with sns.axes_style("white"):
-        ax = sns.heatmap(
-            rho, mask=mask, vmax=1,
-            annot=True, yticklabels=budgets,
-            xticklabels=budgets, square=True,
-            cmap="YlGnBu"
-        )
-        ax.set_title("Rank correlation")
-        plt.savefig(os.path.join(
-            working_dir,
-            'rank_correlations.png'),
-            bbox_inches='tight')
-        plt.close(fig)
-
+            plt.savefig(
+                os.path.join(
+                    working_dir,
+                    'fidelity%.0f%.0f.pdf' % (small_fid, big_fidelity)
+                ),
+                bbox_inches='tight'
+            )
+            plt.clf()
+    plt.close(fig)

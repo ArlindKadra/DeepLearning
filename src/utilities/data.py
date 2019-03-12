@@ -1,4 +1,6 @@
 import numpy as np
+from sklearn.utils.class_weight import compute_class_weight
+from sklearn.model_selection import StratifiedKFold
 
 
 def feature_normalization(x, mean, std, categorical=None):
@@ -30,6 +32,15 @@ def feature_normalization(x, mean, std, categorical=None):
     return x
 
 
+def calculate_class_weights(y_train):
+
+    return compute_class_weight(
+        'balanced',
+        np.unique(y_train),
+        y_train
+    )
+
+
 def calculate_stat(x):
 
     mean = np.mean(x, axis=0)
@@ -47,10 +58,35 @@ def determine_input_sets(nr_examples):
     shuffled_indices = np.random.permutation(indices)
     # determine the indices for each set
     test = shuffled_indices[0:index_slice]
-    validation = shuffled_indices[index_slice + 1:(2 * index_slice) + 1]
-    train = shuffled_indices[(2 * index_slice) + 1:]
+    validation = shuffled_indices[index_slice:2 * index_slice]
+    train = shuffled_indices[2 * index_slice:]
 
     return train, validation, test
+
+
+def determine_stratified_val_set(x_train, y_train, nr_folds=10):
+
+    skf = StratifiedKFold(n_splits=nr_folds, random_state=69)
+    train_indices = None
+    validation_indices = None
+    for train_set, validation_set in skf.split(x_train, y_train):
+        train_indices = train_set
+        validation_indices = validation_set
+        break
+    return train_indices, validation_indices
+
+
+def determine_feature_type(categorical):
+
+    if True in categorical:
+        if False in categorical:
+            feature_types = 'mixed'
+        else:
+            feature_types = 'categorical'
+    else:
+        feature_types = 'numerical'
+
+    return feature_types
 
 
 def contains_nan(x):
