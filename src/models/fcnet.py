@@ -10,7 +10,6 @@ class FcNet(nn.Module):
         # create the blocks
         self.layers = self._make_block(self.config["num_layers"], input_features)
         self.fc_layer = nn.Linear(self.config["num_units_%i" % self.config["num_layers"]], int(nr_labels))
-        self.softmax_layer = nn.Softmax(1)
 
         for m in self.modules():
             if isinstance(m, nn.BatchNorm1d):
@@ -21,7 +20,6 @@ class FcNet(nn.Module):
 
         out = self.layers(x)
         out = self.fc_layer(out)
-        out = self.softmax_layer(out)
         return out
 
     def _make_block(self, nr_layers, input_features):
